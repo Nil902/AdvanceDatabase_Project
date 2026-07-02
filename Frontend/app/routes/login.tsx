@@ -169,8 +169,7 @@ export default function NIMSLogin() {
               System Version 4.2.0-LTS • Regional Access Zone: North
             </p>
             <p className="text-xs text-slate-400">
-              © 2024 National Identity Management Authority. All Rights
-              Reserved.
+              © 2024 National Identity Management Authority. All Rights Reserved.
             </p>
           </div>
         </div>
