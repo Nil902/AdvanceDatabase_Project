@@ -1,43 +1,44 @@
 import React, { useState } from 'react';
 import type { FormEvent } from 'react';
-import { useNavigate, Link } from 'react-router';
-import { User, Eye, EyeOff, LogIn, Loader2, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { Mail, ArrowLeft, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 
-export default function LoginPage() {
-  const [username, setUsername] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
-  const [showPassword, setShowPassword] = useState<boolean>(false);
+export default function RequestOtpPage() {
+  const [email, setEmail] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const navigate = useNavigate();
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/v1/auth/login', {
+      const response = await fetch('/api/v1/forgot-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Login failed.');
+        throw new Error(data.message || 'Failed to send verification code.');
       }
 
-      localStorage.setItem('auth_token', data.token);
-      localStorage.setItem('auth_user', JSON.stringify(data.user));
-      navigate('/dashboard');
+      setSuccess('Verification code sent! Redirecting...');
+      setTimeout(() => {
+        navigate('/verify-identity', { state: { email } });
+      }, 1500);
     } catch (err: any) {
-      setError(err.message || 'An error occurred during login.');
+      setError(err.message || 'An error occurred while sending the code.');
     } finally {
       setIsLoading(false);
     }
@@ -114,86 +115,70 @@ export default function LoginPage() {
 
           <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
             <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-1 text-center">
+                <h3 className="text-base font-bold text-slate-900">Password Recovery</h3>
+                <p className="text-xs leading-relaxed text-slate-500">
+                  Enter your registered email address. We will send a 6-digit verification code to reset your password.
+                </p>
+              </div>
+
               {error && (
                 <div className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800">
                   <AlertCircle className="h-4 w-4 shrink-0 stroke-[2.5]" />
                   <span>{error}</span>
                 </div>
               )}
+
+              {success && (
+                <div className="flex items-start gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 stroke-[2.5]" />
+                  <span>{success}</span>
+                </div>
+              )}
+
               <div className="space-y-1.5">
-                <label htmlFor="username" className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                  Administrator Username
+                <label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Email Address
                 </label>
                 <div className="relative">
                   <input
-                    id="username"
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Enter your email or username"
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 py-2.5 pl-3 pr-10 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="admin@example.com"
+                    disabled={isLoading || success !== null}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 py-2.5 pl-3 pr-10 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white disabled:cursor-not-allowed disabled:opacity-60"
                     required
                   />
-                  <User className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Mail className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="password" className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 py-2.5 pl-3 pr-10 text-sm text-slate-900 tracking-widest outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <Link to="/forgot-password" className="text-xs font-semibold text-blue-800 hover:underline">
-                  Forgot Password?
-                </Link>
               </div>
 
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || success !== null}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-slate-950 py-3 text-sm font-semibold text-white shadow transition hover:bg-slate-900 active:bg-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isLoading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Authenticating...
+                    Sending Code...
                   </>
                 ) : (
                   <>
-                    <LogIn className="h-4 w-4" />
-                    Login
+                    <Mail className="h-4 w-4" />
+                    Send Verification Code
                   </>
                 )}
               </button>
             </form>
 
-            <div className="relative mt-8 flex items-center justify-center">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200"></div>
-              </div>
-              <span className="relative bg-white px-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                Secure Biometrics
-              </span>
+            <div className="mt-5 flex items-center justify-center">
+              <a href="/login" className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-800 hover:underline transition">
+                <ArrowLeft className="h-3.5 w-3.5 stroke-[2.5]" />
+                Back to Login
+              </a>
             </div>
           </div>
         </div>
