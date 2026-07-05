@@ -37,6 +37,8 @@ interface AuditLog {
   severity: 'INFO' | 'WARNING' | 'CRITICAL';
 }
 
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100';
+
 export default function DashboardPage() {
   const [currentTab, setCurrentTab] = useState<'users' | 'profile' | 'audit' | 'security'>('profile');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -62,12 +64,22 @@ export default function DashboardPage() {
   const [backupZone, setBackupZone] = useState<string>('North Region Central HQ');
   const [backupPassword, setBackupPassword] = useState<string>('mastersecurepass123');
 
-  const usersData: UserAccount[] = [
+  // ---- USERS DATA IS NOW STATE (this is what makes Add/Edit/Delete possible) ----
+  const [usersData, setUsersData] = useState<UserAccount[]>([
     { id: '1', name: 'Alex Rivera', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100', lastActive: '2h ago', email: 'alex.rivera@corporate.com', role: 'ADMIN', status: 'Active' },
     { id: '2', name: 'Jordan Smith', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100', lastActive: '15m ago', email: 'jordan.smith@corporate.com', role: 'USER', status: 'Active' },
     { id: '3', name: 'Elena Vance', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100', lastActive: '2d ago', email: 'elena.vance@corporate.com', role: 'USER', status: 'Inactive' },
     { id: '4', name: 'Marcus Chen', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=100', lastActive: '1h ago', email: 'marcus.chen@corporate.com', role: 'USER', status: 'Suspended' }
-  ];
+  ]);
+
+  // ---- ADD USER modal state ----
+  const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [newUserName, setNewUserName] = useState<string>('');
+  const [newUserEmail, setNewUserEmail] = useState<string>('');
+  const [newUserRole, setNewUserRole] = useState<'ADMIN' | 'USER'>('USER');
+
+  // ---- EDIT USER modal state ----
+  const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
 
   const auditLogs: AuditLog[] = [
     { id: 'LOG-8821', timestamp: '2026-07-04 22:15:32', actor: 'admin@corporate.com', action: 'Modified system firewall parameters', ipAddress: '192.168.1.45', severity: 'WARNING' },
@@ -82,6 +94,13 @@ export default function DashboardPage() {
     if (activeUserFilter === 'standard') return matchesSearch && user.role === 'USER';
     return matchesSearch;
   });
+
+  // ---- Dynamic stat card values (derived from real usersData now) ----
+  const totalUsersCount = usersData.length;
+  const activeUsersCount = usersData.filter(u => u.status === 'Active').length;
+  const adminUsersCount = usersData.filter(u => u.role === 'ADMIN').length;
+  const standardUsersCount = usersData.filter(u => u.role === 'USER').length;
+  const suspendedUsersCount = usersData.filter(u => u.status === 'Suspended').length;
 
   const handleStartEditing = () => {
     setBackupName(profileName);
@@ -106,6 +125,50 @@ export default function DashboardPage() {
     setIsEditingProfile(false);
   };
 
+  // ---- ADD USER handlers ----
+  const handleOpenAddModal = () => {
+    setNewUserName('');
+    setNewUserEmail('');
+    setNewUserRole('USER');
+    setShowAddModal(true);
+  };
+
+  const handleConfirmAddUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserName.trim() || !newUserEmail.trim()) return;
+
+    const newAccount: UserAccount = {
+      id: crypto.randomUUID(),
+      name: newUserName.trim(),
+      email: newUserEmail.trim(),
+      role: newUserRole,
+      status: 'Active',
+      lastActive: 'Just now',
+      avatar: DEFAULT_AVATAR
+    };
+
+    setUsersData(prev => [newAccount, ...prev]);
+    setShowAddModal(false);
+  };
+
+  // ---- EDIT USER handlers ----
+  const handleOpenEditModal = (user: UserAccount) => {
+    setEditingUser({ ...user }); // clone so we don't mutate original list until saved
+  };
+
+  const handleConfirmEditUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+
+    setUsersData(prev => prev.map(u => (u.id === editingUser.id ? editingUser : u)));
+    setEditingUser(null);
+  };
+
+  // ---- DELETE USER handler ----
+  const handleDeleteUser = (id: string) => {
+    setUsersData(prev => prev.filter(u => u.id !== id));
+  };
+
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans antialiased text-slate-900">
       
@@ -113,7 +176,7 @@ export default function DashboardPage() {
       <aside className="fixed inset-y-0 left-0 flex w-64 flex-col justify-between border-r border-slate-200 bg-white p-5 shadow-sm z-20">
         <div className="space-y-7">
           <div className="flex items-center gap-3 border-b border-slate-100 pb-5">
-            <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100" alt="Admin Avatar" className="h-9 w-9 rounded-lg object-cover" />
+            <img src={DEFAULT_AVATAR} alt="Admin Avatar" className="h-9 w-9 rounded-lg object-cover" />
             <div>
               <h4 className="text-xs font-bold tracking-tight text-slate-900">{profileName}</h4>
               <p className="text-[11px] text-slate-500">{profileEmail}</p>
@@ -143,16 +206,16 @@ export default function DashboardPage() {
                   <h1 className="text-2xl font-bold tracking-tight text-slate-900">User Management</h1>
                   <p className="text-xs text-slate-500">Directory of all authorized administrative and staff accounts.</p>
                 </div>
-                <button className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2 text-xs font-bold text-white shadow hover:bg-slate-900"><UserPlus className="h-4 w-4" />Add User</button>
+                <button onClick={handleOpenAddModal} className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2 text-xs font-bold text-white shadow hover:bg-slate-900"><UserPlus className="h-4 w-4" />Add User</button>
               </div>
               <div className="grid grid-cols-4 gap-4">
-                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex items-center gap-4"><div className="rounded-lg bg-blue-50 p-3 text-blue-600"><Users className="h-5 w-5" /></div><div><span className="text-[11px] text-slate-500 font-medium block">Total Users</span><h3 className="text-lg font-bold text-slate-900 mt-0.5">248 Users</h3></div></div>
-                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex items-center gap-4"><div className="rounded-lg bg-emerald-50 p-3 text-emerald-600"><UserCheck className="h-5 w-5" /></div><div><span className="text-[11px] text-slate-500 font-medium block">Active Clearances</span><h3 className="text-lg font-bold text-slate-900 mt-0.5">244 Active</h3></div></div>
-                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex items-center gap-4"><div className="rounded-lg bg-amber-50 p-3 text-amber-600"><Shield className="h-5 w-5" /></div><div><span className="text-[11px] text-slate-500 font-medium block">Administrators</span><h3 className="text-lg font-bold text-slate-900 mt-0.5">12 Admins</h3></div></div>
-                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex items-center gap-4"><div className="rounded-lg bg-rose-50 p-3 text-rose-600"><Activity className="h-5 w-5" /></div><div><span className="text-[11px] text-slate-500 font-medium block">Suspended</span><h3 className="text-lg font-bold text-slate-900 mt-0.5">4 Enforced</h3></div></div>
+                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex items-center gap-4"><div className="rounded-lg bg-blue-50 p-3 text-blue-600"><Users className="h-5 w-5" /></div><div><span className="text-[11px] text-slate-500 font-medium block">Total Users</span><h3 className="text-lg font-bold text-slate-900 mt-0.5">{totalUsersCount} Users</h3></div></div>
+                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex items-center gap-4"><div className="rounded-lg bg-emerald-50 p-3 text-emerald-600"><UserCheck className="h-5 w-5" /></div><div><span className="text-[11px] text-slate-500 font-medium block">Active Clearances</span><h3 className="text-lg font-bold text-slate-900 mt-0.5">{activeUsersCount} Active</h3></div></div>
+                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex items-center gap-4"><div className="rounded-lg bg-amber-50 p-3 text-amber-600"><Shield className="h-5 w-5" /></div><div><span className="text-[11px] text-slate-500 font-medium block">Administrators</span><h3 className="text-lg font-bold text-slate-900 mt-0.5">{adminUsersCount} Admins</h3></div></div>
+                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex items-center gap-4"><div className="rounded-lg bg-rose-50 p-3 text-rose-600"><Activity className="h-5 w-5" /></div><div><span className="text-[11px] text-slate-500 font-medium block">Suspended</span><h3 className="text-lg font-bold text-slate-900 mt-0.5">{suspendedUsersCount} Enforced</h3></div></div>
               </div>
               <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm flex items-center justify-between gap-4">
-                <div className="flex gap-1.5">{['all', 'admin', 'standard'].map((f) => (<button key={f} onClick={() => setActiveUserFilter(f as any)} className={`rounded-lg px-3 py-1 text-xs font-bold transition border tracking-wide ${activeUserFilter === f ? 'bg-slate-950 text-white border-slate-950 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>{f === 'all' ? 'All Users (248)' : f === 'admin' ? 'Admins (12)' : 'Standard (236)'}</button>))}</div>
+                <div className="flex gap-1.5">{['all', 'admin', 'standard'].map((f) => (<button key={f} onClick={() => setActiveUserFilter(f as any)} className={`rounded-lg px-3 py-1 text-xs font-bold transition border tracking-wide ${activeUserFilter === f ? 'bg-slate-950 text-white border-slate-950 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>{f === 'all' ? `All Users (${totalUsersCount})` : f === 'admin' ? `Admins (${adminUsersCount})` : `Standard (${standardUsersCount})`}</button>))}</div>
                 <div className="relative w-72">
                   <input type="text" placeholder="Filter by name, email or role..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full rounded-lg border border-slate-200 bg-slate-50/50 py-1.5 pl-3 pr-10 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-400 focus:bg-white" />
                   <Search className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
@@ -163,14 +226,17 @@ export default function DashboardPage() {
                   <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
                     <tr><th className="px-6 py-3.5">User</th><th className="px-6 py-3.5">Email</th><th className="px-6 py-3.5">Role</th><th className="px-6 py-3.5">Status</th><th className="px-6 py-3.5 text-center">Actions</th></tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-150">
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredUsers.length === 0 && (
+                      <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-400 font-medium">No users match your search.</td></tr>
+                    )}
                     {filteredUsers.map((account) => (
                       <tr key={account.id} className="hover:bg-slate-50/50 transition">
                         <td className="px-6 py-3.5 flex items-center gap-3"><img src={account.avatar} alt={account.name} className="h-8 w-8 rounded-lg object-cover" /><div><div className="font-bold text-slate-900">{account.name}</div><div className="text-[11px] text-slate-400">Last active {account.lastActive}</div></div></td>
                         <td className="px-6 py-3.5 text-slate-600 font-medium">{account.email}</td>
                         <td className="px-6 py-3.5"><span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-bold tracking-wide uppercase ${account.role === 'ADMIN' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{account.role}</span></td>
                         <td className="px-6 py-3.5"><div className="flex items-center gap-1.5 font-semibold"><span className={`h-1.5 w-1.5 rounded-full ${account.status === 'Active' ? 'bg-emerald-500' : account.status === 'Inactive' ? 'bg-slate-400' : 'bg-rose-500'}`} /><span className={account.status === 'Active' ? 'text-slate-800' : account.status === 'Inactive' ? 'text-slate-500' : 'text-rose-600'}>{account.status}</span></div></td>
-                        <td className="px-6 py-3.5"><div className="flex items-center justify-center gap-2"><button className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><Edit2 className="h-3.5 w-3.5" /></button><button className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button></div></td>
+                        <td className="px-6 py-3.5"><div className="flex items-center justify-center gap-2"><button onClick={() => handleOpenEditModal(account)} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><Edit2 className="h-3.5 w-3.5" /></button><button onClick={() => handleDeleteUser(account.id)} className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button></div></td>
                       </tr>
                     ))}
                   </tbody>
@@ -190,7 +256,7 @@ export default function DashboardPage() {
               <div className="grid grid-cols-12 gap-6 items-start">
                 <div className="col-span-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm text-center space-y-4">
                   <div className="relative group mx-auto h-20 w-20">
-                    <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200" alt="Avatar Huge" className="h-20 w-20 rounded-xl object-cover border border-slate-100" />
+                    <img src={DEFAULT_AVATAR.replace('w=100', 'w=200')} alt="Avatar Huge" className="h-20 w-20 rounded-xl object-cover border border-slate-100" />
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-900 text-sm">{profileName}</h3>
@@ -254,7 +320,7 @@ export default function DashboardPage() {
                       <div className="space-y-1.5">
                         <label htmlFor="p-pass" className="text-[11px] font-semibold text-slate-400 block">Master Security Passcode</label>
                         {isEditingProfile ? (
-                          <input id="p-pass" type="text" value={profilePassword} onChange={(e) => setProfilePassword(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-xs font-mono font-bold text-slate-800 outline-none transition focus:border-slate-500" />
+                          <input id="p-pass" type="password" value={profilePassword} onChange={(e) => setProfilePassword(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-xs font-mono font-bold text-slate-800 outline-none transition focus:border-slate-500" />
                         ) : (
                           <div className="w-full rounded-lg border border-slate-200 bg-slate-50/50 py-2 px-3 text-xs font-mono font-bold text-slate-600 select-none">••••••••••••••••</div>
                         )}
@@ -292,7 +358,7 @@ export default function DashboardPage() {
                   <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
                     <tr><th className="px-6 py-3.5">Log ID</th><th className="px-6 py-3.5">Timestamp</th><th className="px-6 py-3.5">Actor</th><th className="px-6 py-3.5">Executed Action</th><th className="px-6 py-3.5">IP Address</th><th className="px-6 py-3.5 text-center">Severity</th></tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-150 font-medium text-slate-600">
+                  <tbody className="divide-y divide-slate-100 font-medium text-slate-600">
                     {auditLogs.map((log) => (
                       <tr key={log.id} className="hover:bg-slate-50/50 transition font-mono text-[11px]">
                         <td className="px-6 py-3.5 text-slate-900 font-bold">{log.id}</td><td className="px-6 py-3.5 text-slate-500">{log.timestamp}</td><td className="px-6 py-3.5 text-slate-700 font-bold font-sans">{log.actor}</td><td className="px-6 py-3.5 text-slate-800 max-w-xs truncate font-sans font-medium">{log.action}</td><td className="px-6 py-3.5 text-slate-500">{log.ipAddress}</td>
@@ -340,6 +406,82 @@ export default function DashboardPage() {
 
         </div>
       </main>
+
+      {/* ADD USER MODAL */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900">Add New User</h3>
+              <button onClick={() => setShowAddModal(false)} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><X className="h-4 w-4" /></button>
+            </div>
+            <form onSubmit={handleConfirmAddUser} className="space-y-4">
+              <div className="space-y-1.5">
+                <label htmlFor="new-name" className="text-[11px] font-semibold text-slate-400 block">Full Name</label>
+                <input id="new-name" type="text" required value={newUserName} onChange={(e) => setNewUserName(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-xs font-bold text-slate-800 outline-none focus:border-slate-500" placeholder="e.g. Sam Taylor" />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="new-email" className="text-[11px] font-semibold text-slate-400 block">Email Address</label>
+                <input id="new-email" type="email" required value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-xs font-bold text-slate-800 outline-none focus:border-slate-500" placeholder="e.g. sam.taylor@corporate.com" />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="new-role" className="text-[11px] font-semibold text-slate-400 block">Role</label>
+                <select id="new-role" value={newUserRole} onChange={(e) => setNewUserRole(e.target.value as 'ADMIN' | 'USER')} className="w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-xs font-bold text-slate-800 outline-none focus:border-slate-500">
+                  <option value="USER">Standard User</option>
+                  <option value="ADMIN">Administrator</option>
+                </select>
+              </div>
+              <div className="pt-2 flex items-center gap-2 border-t border-slate-100">
+                <button type="submit" className="inline-flex items-center gap-1.5 rounded-lg bg-slate-950 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-slate-900"><UserPlus className="h-3.5 w-3.5" />Create User</button>
+                <button type="button" onClick={() => setShowAddModal(false)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT USER MODAL */}
+      {editingUser && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900">Edit User</h3>
+              <button onClick={() => setEditingUser(null)} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><X className="h-4 w-4" /></button>
+            </div>
+            <form onSubmit={handleConfirmEditUser} className="space-y-4">
+              <div className="space-y-1.5">
+                <label htmlFor="edit-name" className="text-[11px] font-semibold text-slate-400 block">Full Name</label>
+                <input id="edit-name" type="text" required value={editingUser.name} onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })} className="w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-xs font-bold text-slate-800 outline-none focus:border-slate-500" />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="edit-email" className="text-[11px] font-semibold text-slate-400 block">Email Address</label>
+                <input id="edit-email" type="email" required value={editingUser.email} onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })} className="w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-xs font-bold text-slate-800 outline-none focus:border-slate-500" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label htmlFor="edit-role" className="text-[11px] font-semibold text-slate-400 block">Role</label>
+                  <select id="edit-role" value={editingUser.role} onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value as 'ADMIN' | 'USER' })} className="w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-xs font-bold text-slate-800 outline-none focus:border-slate-500">
+                    <option value="USER">Standard User</option>
+                    <option value="ADMIN">Administrator</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="edit-status" className="text-[11px] font-semibold text-slate-400 block">Status</label>
+                  <select id="edit-status" value={editingUser.status} onChange={(e) => setEditingUser({ ...editingUser, status: e.target.value as UserAccount['status'] })} className="w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-xs font-bold text-slate-800 outline-none focus:border-slate-500">
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Suspended">Suspended</option>
+                  </select>
+                </div>
+              </div>
+              <div className="pt-2 flex items-center gap-2 border-t border-slate-100">
+                <button type="submit" className="inline-flex items-center gap-1.5 rounded-lg bg-slate-950 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-slate-900"><Save className="h-3.5 w-3.5" />Save Changes</button>
+                <button type="button" onClick={() => setEditingUser(null)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
