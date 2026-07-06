@@ -1,30 +1,91 @@
 <?php
 
 use App\Http\Controllers\Api\V1\Auth\AuthController;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\V1\BirthCertificateController;
+use App\Http\Controllers\Api\V1\CitizenController;
+use App\Http\Controllers\Api\V1\IdCardController;
+use App\Http\Controllers\Api\V1\HouseholdController;
+use App\Http\Controllers\Api\V1\FamilyController;
+use App\Http\Controllers\Api\V1\VitalEventController;
+use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Auth\PasswordResetController;
+use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| API Routes - Version 1
+|--------------------------------------------------------------------------
+*/
 
 Route::prefix('v1')->group(function () {
 
-    // ── Public ──────────────────────────────────────────────────────────
+    // ── Public Endpoints ──────────────────────────────────────────────────
     Route::post('auth/login', [AuthController::class, 'login'])
-        ->middleware('throttle:5,1'); // 5 attempts/min per IP — slows brute force
+        ->middleware('throttle:5,1'); // 5 attempts/min per IP
+
     Route::post('/forgot-password', [PasswordResetController::class, 'sendOtp']);
     Route::post('/verify-otp', [PasswordResetController::class, 'verifyOtp']);
     Route::post('/reset-password', [PasswordResetController::class, 'resetPassword']);
 
-    // ── Authenticated (any valid, non-expired, non-revoked token) ──────
+    // Public ID card verification – third‑party validation (rate‑limited)
+    Route::post('id-cards/verify', [IdCardController::class, 'verifyPublic'])
+        ->middleware('throttle:30,1');
+
+    // ── Authenticated Endpoints (any valid token) ──────────────────────
     Route::middleware('auth:api')->group(function () {
+
+        // Auth
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('auth/me', [AuthController::class, 'me']);
 
-        // Every other module's routes go inside this same middleware group.
-        // Example of how ability-gating layers on top of auth:api —
-        // see the Birth Certificate guide for the full pattern:
-        //
-        // Route::apiResource('birth-certificates', BirthCertificateController::class)
-        //     ->parameters(['birth-certificates' => 'id']);
-        // Route::post('birth-certificates/{id}/verify', [BirthCertificateController::class, 'verify'])
-        //     ->middleware('ability:birth:verify');
+        // ── Birth Certificates ───────────────────────────────────────────
+        Route::apiResource('birth-certificates', BirthCertificateController::class)
+            ->parameters(['birth-certificates' => 'id']);
+        Route::post('birth-certificates/{id}/verify', [BirthCertificateController::class, 'verify'])
+            ->middleware('ability:birth:verify');
+        Route::post('birth-certificates/{id}/print', [BirthCertificateController::class, 'print'])
+            ->middleware('ability:birth:print');
+
+        // ── Citizens ──────────────────────────────────────────────────────
+        Route::put('citizens/{id}', [CitizenController::class, 'update']);
+        Route::post('citizens/{id}/photo', [CitizenController::class, 'uploadPhoto']);
+        Route::post('citizens/{id}/fingerprint', [CitizenController::class, 'uploadFingerprint']);
+        Route::post('citizens/{id}/assign-nid', [CitizenController::class, 'assignNid']);
+
+        // ── ID Cards ─────────────────────────────────────────────────────
+        Route::get('id-cards/search', [IdCardController::class, 'search']);
+        Route::post('id-cards', [IdCardController::class, 'store']);
+        Route::post('id-cards/{id}/renew', [IdCardController::class, 'renew']);
+        Route::post('id-cards/{id}/replace', [IdCardController::class, 'replace']);
+        Route::patch('id-cards/{id}/status', [IdCardController::class, 'updateStatus']);
+        Route::post('id-cards/{id}/dispatch', [IdCardController::class, 'dispatch']);
+
+        // ── Households ───────────────────────────────────────────────────
+        Route::post('households', [HouseholdController::class, 'store']);
+        Route::get('households/{id}/members', [HouseholdController::class, 'members']);
+        Route::post('households/{id}/members', [HouseholdController::class, 'addMember']);
+        Route::delete('households/{id}/members/{citizenId}', [HouseholdController::class, 'removeMember']);
+        Route::patch('households/{id}/head', [HouseholdController::class, 'changeHead']);
+        Route::put('households/{id}/address', [HouseholdController::class, 'updateAddress']);
+        Route::post('households/transfer', [HouseholdController::class, 'transfer']);
+        Route::get('households/{id}/history', [HouseholdController::class, 'history']);
+
+        // ── Families ─────────────────────────────────────────────────────
+        Route::post('families', [FamilyController::class, 'store']);
+        Route::get('families/search', [FamilyController::class, 'search']);
+        Route::put('families/{id}', [FamilyController::class, 'update']);
+        Route::post('families/{id}/members', [FamilyController::class, 'addMember']);
+        Route::get('families/{id}/tree', [FamilyController::class, 'tree']);
+
+        // ── Vital Events ─────────────────────────────────────────────────
+        Route::post('vital-events/marriage', [VitalEventController::class, 'marriage']);
+        Route::post('vital-events/divorce', [VitalEventController::class, 'divorce']);
+        Route::post('vital-events/birth', [VitalEventController::class, 'birth']);
+        Route::post('vital-events/death', [VitalEventController::class, 'death']);
+
+        // ── Reports ──────────────────────────────────────────────────────
+        Route::get('reports/summary', [ReportController::class, 'summary']);
+        Route::get('reports/demographics', [ReportController::class, 'demographics']);
+        Route::get('reports/export', [ReportController::class, 'export']);
     });
 });
