@@ -1,0 +1,110 @@
+import React from 'react';
+import { NavLink, Outlet } from 'react-router';
+import {
+  Search,
+  FileBarChart2,
+  FileHeart,
+  IdCard,
+  BookOpen,
+  UsersRound,
+  LogOut,
+  KeyRound,
+} from 'lucide-react';
+
+const NAV_ITEMS = [
+  { to: '/registrar', label: 'Demographic Report', icon: FileBarChart2, color: 'text-blue-400' },
+  { to: '/registrar/birth-certificate', label: 'Birth Certificate', icon: FileHeart, color: 'text-emerald-400' },
+  { to: '/registrar/national-id', label: 'National ID Card', icon: IdCard, color: 'text-amber-400' },
+  { to: '/registrar/residency-book', label: 'Residency Book', icon: BookOpen, color: 'text-purple-400' },
+  { to: '/registrar/family-management', label: 'Family Management', icon: UsersRound, color: 'text-red-400' },
+];
+
+// TODO: replace with the actual logged-in registrar's info (from auth context / API)
+const currentRegistrar = {
+  name: 'Lynol Chiv',
+  role: 'Tonle Bassac Commune Hall',
+  desk: 'COMMUNE DESK',
+};
+
+export default function RegistrarLayout() {
+  return (
+    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
+
+      {/* SIDEBAR */}
+      <aside className="fixed inset-y-0 left-0 flex w-[200px] flex-col justify-between bg-[#0b1120] px-4 py-5 z-20">
+        <div className="space-y-6">
+          <div className="px-1">
+            <h1 className="text-sm font-bold tracking-tight text-white leading-tight">NIMS Portal</h1>
+            <p className="text-[9px] font-semibold tracking-wider text-slate-400">NATIONAL IDENTITY SYSTEM</p>
+          </div>
+
+          <div className="space-y-2">
+            <p className="px-1 text-[10px] font-bold tracking-widest text-slate-500">OPERATIONAL</p>
+            <nav className="space-y-1">
+              {NAV_ITEMS.map(({ to, label, icon: Icon, color }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={to === '/registrar'}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                      isActive
+                        ? 'bg-blue-600/90 text-white'
+                        : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                    }`
+                  }
+                >
+                  <Icon className={`h-4 w-4 shrink-0 ${color}`} />
+                  {label}
+                </NavLink>
+              ))}
+            </nav>
+          </div>
+        </div>
+
+        {/* SECURED KEY / SESSION BOX */}
+        <div className="space-y-3 rounded-xl bg-white/5 p-3">
+          <div className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-amber-400">
+            <KeyRound className="h-3.5 w-3.5" />
+            SECURED KEY
+          </div>
+          <div>
+            <p className="text-xs font-bold text-white">{currentRegistrar.name}</p>
+            <p className="text-[10px] text-slate-400">{currentRegistrar.role}</p>
+            <p className="text-[10px] font-bold text-amber-400">{currentRegistrar.desk}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              // TODO: wire to real logout (clear token / call /auth/logout)
+              window.location.href = '/login';
+            }}
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-red-600/90 py-2 text-[10px] font-bold text-white transition hover:bg-red-600"
+          >
+            <LogOut className="h-3 w-3" />
+            Terminate Session
+          </button>
+        </div>
+      </aside>
+
+      {/* MAIN AREA */}
+      <div className="pl-[200px] w-full">
+        {/* TOP SEARCH BAR */}
+        <div className="border-b border-slate-200 bg-white px-6 py-3">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search Registry name (KH/ENG) or ID Number"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs text-slate-700 outline-none placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
+            />
+          </div>
+        </div>
+
+        <main className="p-8">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}
