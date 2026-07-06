@@ -17,7 +17,10 @@ class AuthController extends Controller
     {
         $credentials = $request->validated();
 
-        $user = SystemUser::where('username', $credentials['username'])
+        $user = SystemUser::where(function ($query) use ($credentials) {
+                $query->where('username', $credentials['username'])
+                      ->orWhere('email', $credentials['username']);
+            })
             ->whereNull('deleted_at')
             ->first();
 
