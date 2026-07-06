@@ -7,4 +7,13 @@ export default [
   route("verify-identity", "routes/verify-otp.tsx"),
   route("reset-password", "routes/forgot-password.tsx"),
   route("dashboard", "routes/dashboard.tsx"),
+
+  // ── Registrar Portal (NIMS Portal) ──────────────────────────────────
+  route("registrar", "routes/registrar/layout.tsx", [
+    index("routes/registrar/demographic-report.tsx"),
+    route("birth-certificate", "routes/registrar/birth-certificate.tsx"),
+    route("national-id", "routes/registrar/national-id.tsx"),
+    route("residency-book", "routes/registrar/residency-book.tsx"),
+    route("family-management", "routes/registrar/family-management.tsx"),
+  ]),
 ] satisfies RouteConfig;
