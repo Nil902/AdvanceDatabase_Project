@@ -24,8 +24,6 @@ class AuthController extends Controller
             ->whereNull('deleted_at')
             ->first();
 
-        // Same generic message whether the user doesn't exist or the password
-        // is wrong — don't leak which one it was.
         if (! $user || ! Hash::check($credentials['password'], $user->password_hash)) {
             $user?->registerFailedLogin();
 
@@ -48,7 +46,7 @@ class AuthController extends Controller
         ['token' => $plainToken] = $user->issueToken(
             name: 'web-session',
             abilities: $this->abilitiesForRole($user->role_id),
-            expiresInMinutes: 60 * 24 * 7, // 7 days
+            expiresInMinutes: 60 * 24 * 7,
         );
 
         return response()->json([
@@ -62,9 +60,6 @@ class AuthController extends Controller
     public function logout(Request $request): JsonResponse
     {
         $user = $request->user();
-
-        // Revoke only the token that authenticated this specific request,
-        // not every token the user holds (so other devices/sessions stay logged in).
         $user->currentToken?->revoke();
 
         return response()->json(['message' => 'Logged out successfully.']);
@@ -78,11 +73,6 @@ class AuthController extends Controller
         return response()->json(new SystemUserResource($user));
     }
 
-    /**
-     * Maps a role to the ability strings stored on its issued tokens.
-     * role_id 1=admin, 2=supervisor, 3=registrar, 4=viewer — adjust to match
-     * whatever you actually seed into user_roles.
-     */
     private function abilitiesForRole(int $roleId): array
     {
         return match ($roleId) {
@@ -100,7 +90,7 @@ class AuthController extends Controller
                 'household:create', 'household:read',
                 'family:create', 'family:read',
             ],
-            default => [ // viewer
+            default => [
                 'birth:read', 'id_card:read', 'household:read', 'family:read', 'reports:read',
             ],
         };
