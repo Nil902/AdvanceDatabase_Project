@@ -1,4 +1,11 @@
-.react-router
-build
+.git
+.github
+.env
+.env.*
+!.env.example
 node_modules
-README.md
+npm-debug.log
+build
+dist
+*.md
+.DS_Store

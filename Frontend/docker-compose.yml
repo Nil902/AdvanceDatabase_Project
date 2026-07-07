@@ -1,0 +1,11 @@
+# Local development — builds and runs the React frontend.
+
+services:
+  frontend:
+    build:
+      context: .
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+    restart: unless-stopped

@@ -1,0 +1,63 @@
+# Local development only — spins up all 4 "servers" from your architecture
+# diagram on one machine so the team doesn't need 4 droplets just to code.
+# Production uses docker-compose.prod.yml instead, pointing at the real
+# Server 2 / Server 4 / Server 5 droplets.
+
+services:
+  app: # Server 3 — Laravel
+    build:
+      context: .
+      target: app
+    ports:
+      - "8000:80"
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: civil_registry
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      MONGO_HOST: mongo
+      MONGO_PORT: 27017
+      MONGO_DATABASE: civil_registry_docs
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      RUN_MIGRATIONS: "true"
+    depends_on:
+      - postgres
+      - mongo
+      - redis
+    volumes:
+      - ./storage/app:/var/www/html/storage/app
+
+  postgres: # Server 4 — primary database
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: civil_registry
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  mongo: # Server 5 — secondary database
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodata:/data/db
+
+  redis: # Server 2 — cache + queue
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+
+volumes:
+  pgdata:
+  mongodata:
+  redisdata:
