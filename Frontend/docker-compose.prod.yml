@@ -1,0 +1,10 @@
+# Production — pulls the pre-built image from GHCR.
+
+services:
+  frontend:
+    image: ${IMAGE_NAME}:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "80:3000"
+    env_file:
+      - .env

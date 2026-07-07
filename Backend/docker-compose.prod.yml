@@ -1,0 +1,22 @@
+# Deployed on Server 3 only. Postgres/Mongo/Redis already run on their own
+# droplets (Server 4 / Server 5 / Server 2) — this just points at them.
+# The GitHub Actions deploy job pulls the built image and runs:
+#   docker compose -f docker-compose.prod.yml up -d
+
+services:
+  app:
+    image: ${IMAGE_NAME}:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    env_file:
+      - .env # lives only on the droplet, never committed — see deploy step
+    environment:
+      RUN_MIGRATIONS: "true" # safe with migrate --force; re-runs are idempotent
+    volumes:
+      - app-storage:/var/www/html/storage/app
+      - app-logs:/var/www/html/storage/logs
+
+volumes:
+  app-storage:
+  app-logs:
