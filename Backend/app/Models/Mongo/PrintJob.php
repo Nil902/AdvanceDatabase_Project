@@ -2,7 +2,7 @@
 
 namespace App\Models\Mongo;
 
-use Jenssegers\Mongodb\Eloquent\Model;
+use MongoDB\Laravel\Eloquent\Model;
 
 // Collection: print_jobs (MongoDB)
 // Tracks certificate/card print lifecycle; attempt history is embedded.

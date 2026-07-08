@@ -2,7 +2,7 @@
 
 namespace App\Models\Mongo;
 
-use Jenssegers\Mongodb\Eloquent\Model;
+use MongoDB\Laravel\Eloquent\Model;
 
 // Collection: card_design_templates (MongoDB)
 // Versioned, flexible layout definitions for ID card printing.

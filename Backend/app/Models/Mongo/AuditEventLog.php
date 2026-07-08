@@ -2,7 +2,7 @@
 
 namespace App\Models\Mongo;
 
-use Jenssegers\Mongodb\Eloquent\Model;
+use MongoDB\Laravel\Eloquent\Model;
 
 // Collection: audit_event_logs (MongoDB time-series collection on performed_at)
 // Immutable append-only log — never update or delete documents here.
