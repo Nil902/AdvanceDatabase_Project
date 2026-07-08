@@ -8,7 +8,7 @@ class FingerprintUploadRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentAccessToken()->can('citizen:upload_fingerprint');
+        return $this->user()->currentToken->hasAbility('citizen:upload_fingerprint');
     }
 
     public function rules(): array

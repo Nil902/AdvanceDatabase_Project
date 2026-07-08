@@ -8,7 +8,7 @@ class DispatchRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentAccessToken()->can('id_card:dispatch');
+        return $this->user()->currentToken->hasAbility('id_card:dispatch');
     }
 
     public function rules(): array

@@ -8,7 +8,7 @@ class UpdateBirthCertificateRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentAccessToken()->can('birth:update');
+        return $this->user()->currentToken->hasAbility('birth:update');
     }
 
     public function rules(): array

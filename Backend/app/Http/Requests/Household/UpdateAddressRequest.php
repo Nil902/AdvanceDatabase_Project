@@ -8,7 +8,7 @@ class UpdateAddressRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentAccessToken()->can('household:update_address');
+        return $this->user()->currentToken->hasAbility('household:update_address');
     }
 
     public function rules(): array

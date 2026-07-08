@@ -2,15 +2,6 @@
 
 return [
 
-    /*
-    |--------------------------------------------------------------------------
-    | Only the parts of config/auth.php that differ from Laravel's default
-    | are shown here — merge these three keys into your existing file rather
-    | than replacing it wholesale, since the default file has other settings
-    | (passwords, password_timeout, etc.) you likely still want.
-    |--------------------------------------------------------------------------
-    */
-
     'defaults' => [
         'guard' => 'api',
         'passwords' => 'system_users',
@@ -18,7 +9,7 @@ return [
 
     'guards' => [
         'api' => [
-            'driver' => 'api_token', // registered in AppServiceProvider::boot()
+            'driver' => 'api_token',
             'provider' => 'system_users',
         ],
     ],
@@ -29,5 +20,16 @@ return [
             'model' => App\Models\SystemUser::class,
         ],
     ],
+
+    'passwords' => [
+        'system_users' => [
+            'provider' => 'system_users',
+            'table' => 'password_otps',
+            'expire' => 10,
+            'throttle' => 60,
+        ],
+    ],
+
+    'password_timeout' => 10800,
 
 ];

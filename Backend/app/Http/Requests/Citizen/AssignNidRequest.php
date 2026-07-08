@@ -8,7 +8,7 @@ class AssignNidRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentAccessToken()->can('citizen:assign_nid');
+        return $this->user()->currentToken->hasAbility('citizen:assign_nid');
     }
 
     public function rules(): array

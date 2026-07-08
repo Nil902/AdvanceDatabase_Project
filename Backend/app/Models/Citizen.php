@@ -10,10 +10,13 @@ class Citizen extends Model
 
     protected $fillable = [
         'national_id_number', 'full_name_kh', 'full_name_en', 'gender',
-        'date_of_birth', 'birth_place_village_id', 'nationality', 'occupation',
+        'date_of_birth', 'date_of_death', 'birth_place_village_id', 'nationality', 'occupation',
     ];
 
-    protected $casts = ['date_of_birth' => 'date'];
+    protected $casts = [
+        'date_of_birth' => 'date',
+        'date_of_death' => 'date',
+    ];
 
     public function birthPlaceVillage()
     {

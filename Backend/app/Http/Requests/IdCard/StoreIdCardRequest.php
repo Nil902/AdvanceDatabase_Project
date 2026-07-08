@@ -8,7 +8,7 @@ class StoreIdCardRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentAccessToken()->can('id_card:create');
+        return $this->user()->currentToken->hasAbility('id_card:create');
     }
 
     public function rules(): array

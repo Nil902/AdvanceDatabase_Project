@@ -8,7 +8,7 @@ class TransferRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentAccessToken()->can('household:transfer');
+        return $this->user()->currentToken->hasAbility('household:transfer');
     }
 
     public function rules(): array

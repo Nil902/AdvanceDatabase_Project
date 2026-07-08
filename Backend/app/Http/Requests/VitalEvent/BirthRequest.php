@@ -8,7 +8,7 @@ class BirthRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentAccessToken()->can('vital:birth');
+        return $this->user()->currentToken->hasAbility('vital:birth');
     }
 
     public function rules(): array

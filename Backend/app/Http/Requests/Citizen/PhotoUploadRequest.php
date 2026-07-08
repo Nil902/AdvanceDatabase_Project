@@ -8,7 +8,7 @@ class PhotoUploadRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentAccessToken()->can('citizen:upload_photo');
+        return $this->user()->currentToken->hasAbility('citizen:upload_photo');
     }
 
     public function rules(): array

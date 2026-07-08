@@ -8,7 +8,7 @@ class DivorceRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentAccessToken()->can('vital:divorce');
+        return $this->user()->currentToken->hasAbility('vital:divorce');
     }
 
     public function rules(): array

@@ -23,9 +23,12 @@ Route::prefix('v1')->group(function () {
     Route::post('auth/login', [AuthController::class, 'login'])
         ->middleware('throttle:5,1'); // 5 attempts/min per IP
 
-    Route::post('/forgot-password', [PasswordResetController::class, 'sendOtp']);
-    Route::post('/verify-otp', [PasswordResetController::class, 'verifyOtp']);
-    Route::post('/reset-password', [PasswordResetController::class, 'resetPassword']);
+    Route::post('/forgot-password', [PasswordResetController::class, 'sendOtp'])
+        ->middleware('throttle:5,1');
+    Route::post('/verify-otp', [PasswordResetController::class, 'verifyOtp'])
+        ->middleware('throttle:5,1');
+    Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])
+        ->middleware('throttle:5,1');
 
     // Public ID card verification – third‑party validation (rate‑limited)
     Route::post('id-cards/verify', [IdCardController::class, 'verifyPublic'])
@@ -40,7 +43,8 @@ Route::prefix('v1')->group(function () {
 
         // ── Birth Certificates ───────────────────────────────────────────
         Route::apiResource('birth-certificates', BirthCertificateController::class)
-            ->parameters(['birth-certificates' => 'id']);
+            ->parameters(['birth-certificates' => 'id'])
+            ->middleware('ability:birth:read');
         Route::post('birth-certificates/{id}/verify', [BirthCertificateController::class, 'verify'])
             ->middleware('ability:birth:verify');
         Route::post('birth-certificates/{id}/print', [BirthCertificateController::class, 'print'])
@@ -53,7 +57,8 @@ Route::prefix('v1')->group(function () {
         Route::post('citizens/{id}/assign-nid', [CitizenController::class, 'assignNid']);
 
         // ── ID Cards ─────────────────────────────────────────────────────
-        Route::get('id-cards/search', [IdCardController::class, 'search']);
+        Route::get('id-cards/search', [IdCardController::class, 'search'])
+            ->middleware('ability:id_card:read');
         Route::post('id-cards', [IdCardController::class, 'store']);
         Route::post('id-cards/{id}/renew', [IdCardController::class, 'renew']);
         Route::post('id-cards/{id}/replace', [IdCardController::class, 'replace']);
@@ -62,20 +67,25 @@ Route::prefix('v1')->group(function () {
 
         // ── Households ───────────────────────────────────────────────────
         Route::post('households', [HouseholdController::class, 'store']);
-        Route::get('households/{id}/members', [HouseholdController::class, 'members']);
+        Route::get('households/{id}/members', [HouseholdController::class, 'members'])
+            ->middleware('ability:household:read');
         Route::post('households/{id}/members', [HouseholdController::class, 'addMember']);
-        Route::delete('households/{id}/members/{citizenId}', [HouseholdController::class, 'removeMember']);
+        Route::delete('households/{id}/members/{citizenId}', [HouseholdController::class, 'removeMember'])
+            ->middleware('ability:household:update');
         Route::patch('households/{id}/head', [HouseholdController::class, 'changeHead']);
         Route::put('households/{id}/address', [HouseholdController::class, 'updateAddress']);
         Route::post('households/transfer', [HouseholdController::class, 'transfer']);
-        Route::get('households/{id}/history', [HouseholdController::class, 'history']);
+        Route::get('households/{id}/history', [HouseholdController::class, 'history'])
+            ->middleware('ability:household:read');
 
         // ── Families ─────────────────────────────────────────────────────
         Route::post('families', [FamilyController::class, 'store']);
-        Route::get('families/search', [FamilyController::class, 'search']);
+        Route::get('families/search', [FamilyController::class, 'search'])
+            ->middleware('ability:family:read');
         Route::put('families/{id}', [FamilyController::class, 'update']);
         Route::post('families/{id}/members', [FamilyController::class, 'addMember']);
-        Route::get('families/{id}/tree', [FamilyController::class, 'tree']);
+        Route::get('families/{id}/tree', [FamilyController::class, 'tree'])
+            ->middleware('ability:family:read');
 
         // ── Vital Events ─────────────────────────────────────────────────
         Route::post('vital-events/marriage', [VitalEventController::class, 'marriage']);
@@ -84,8 +94,11 @@ Route::prefix('v1')->group(function () {
         Route::post('vital-events/death', [VitalEventController::class, 'death']);
 
         // ── Reports ──────────────────────────────────────────────────────
-        Route::get('reports/summary', [ReportController::class, 'summary']);
-        Route::get('reports/demographics', [ReportController::class, 'demographics']);
-        Route::get('reports/export', [ReportController::class, 'export']);
+        Route::get('reports/summary', [ReportController::class, 'summary'])
+            ->middleware('ability:reports:read');
+        Route::get('reports/demographics', [ReportController::class, 'demographics'])
+            ->middleware('ability:reports:read');
+        Route::get('reports/export', [ReportController::class, 'export'])
+            ->middleware('ability:reports:read');
     });
 });
