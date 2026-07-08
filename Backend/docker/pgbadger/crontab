@@ -1,0 +1,8 @@
+# Generate incremental report every hour
+0 * * * * /usr/local/bin/generate-report.sh incremental >> /var/log/pgbadger-cron.log 2>&1
+
+# Generate full daily report at midnight
+5 0 * * * /usr/local/bin/generate-report.sh daily >> /var/log/pgbadger-cron.log 2>&1
+
+# Generate weekly summary on Sundays at 1 AM
+0 1 * * 0 /usr/local/bin/generate-report.sh weekly >> /var/log/pgbadger-cron.log 2>&1
