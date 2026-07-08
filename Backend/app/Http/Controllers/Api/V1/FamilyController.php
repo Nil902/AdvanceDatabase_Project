@@ -9,8 +9,8 @@ use App\Http\Resources\FamilyResource;
 use App\Models\FamilyUnit;
 use App\Services\FamilyService;
 use Illuminate\Http\Request;
-use Spatie\QueryBuilder\QueryBuilder;
 use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\QueryBuilder;
 
 class FamilyController extends Controller
 {

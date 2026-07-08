@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\BirthCertificate;
 use App\Models\Citizen;
 use App\Models\CitizenMaritalStatus;
+use App\Models\CivilStatusHistory;
+use App\Models\CivilStatusLookup;
 use App\Models\DivorceCertificate;
 use App\Models\MarriageCertificate;
 use Illuminate\Support\Facades\Cache;
@@ -85,9 +87,9 @@ class VitalEventService
             $citizen = Citizen::findOrFail($data['citizen_id']);
             $citizen->update(['date_of_death' => $data['date_of_death'] ?? now()]);
 
-            $deceasedStatus = \App\Models\CivilStatusLookup::where('label', 'deceased')->first();
+            $deceasedStatus = CivilStatusLookup::where('label', 'deceased')->first();
 
-            \App\Models\CivilStatusHistory::create([
+            CivilStatusHistory::create([
                 'citizen_id' => $citizen->citizen_id,
                 'status_id' => $deceasedStatus?->status_id,
                 'effective_date' => $data['date_of_death'] ?? now(),
@@ -110,6 +112,6 @@ class VitalEventService
 
     private function generateCertNumber(string $prefix): string
     {
-        return $prefix . date('Ymd') . strtoupper(Str::random(6));
+        return $prefix.date('Ymd').strtoupper(Str::random(6));
     }
 }

@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 class UserAuthToken extends Model
 {
     protected $primaryKey = 'token_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = [
@@ -41,10 +42,10 @@ class UserAuthToken extends Model
         $plainToken = Str::random(64);
 
         $token = static::create([
-            'user_id'    => $user->user_id,
+            'user_id' => $user->user_id,
             'token_hash' => hash('sha256', $plainToken),
             'token_name' => $name,
-            'abilities'  => $abilities,
+            'abilities' => $abilities,
             'expires_at' => $expiresInMinutes ? now()->addMinutes($expiresInMinutes) : null,
         ]);
 

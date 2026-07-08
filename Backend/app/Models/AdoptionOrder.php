@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class AdoptionOrder extends Model
 {
     protected $primaryKey = 'order_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = [

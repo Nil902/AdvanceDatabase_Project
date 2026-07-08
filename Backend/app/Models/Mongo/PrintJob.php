@@ -9,6 +9,7 @@ use MongoDB\Laravel\Eloquent\Model;
 class PrintJob extends Model
 {
     protected $connection = 'mongodb';
+
     protected $collection = 'print_jobs';
 
     protected $fillable = [

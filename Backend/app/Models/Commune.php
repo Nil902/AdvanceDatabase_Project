@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Commune extends Model
 {
     protected $primaryKey = 'commune_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = ['commune_code', 'commune_name_kh', 'commune_name_en', 'district_id'];

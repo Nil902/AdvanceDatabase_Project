@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Village extends Model
 {
     protected $primaryKey = 'village_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = ['village_code', 'village_name_kh', 'village_name_en', 'commune_id'];

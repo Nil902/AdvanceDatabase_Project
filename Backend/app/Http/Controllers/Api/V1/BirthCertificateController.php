@@ -6,12 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\BirthCertificate\StoreBirthCertificateRequest;
 use App\Http\Requests\BirthCertificate\UpdateBirthCertificateRequest;
 use App\Http\Resources\BirthCertificateResource;
+use App\Jobs\EnqueueCertificatePrint;
 use App\Models\BirthCertificate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Spatie\QueryBuilder\QueryBuilder;
 use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\QueryBuilder;
 
 class BirthCertificateController extends Controller
 {
@@ -30,6 +31,7 @@ class BirthCertificateController extends Controller
     {
         $cert = DB::transaction(function () use ($request) {
             $cert = BirthCertificate::create($request->validated() + ['status' => 'issued']);
+
             return $cert;
         });
 
@@ -73,6 +75,7 @@ class BirthCertificateController extends Controller
     public function verify(int $id)
     {
         $cert = BirthCertificate::findOrFail($id);
+
         // Add actual verification logic (e.g., check officer stamp, signature)
         return response()->json(['verified' => true, 'certificate_id' => $cert->certificate_id]);
     }
@@ -81,7 +84,8 @@ class BirthCertificateController extends Controller
     {
         $cert = BirthCertificate::findOrFail($id);
         // Dispatch print job (queue)
-        \App\Jobs\EnqueueCertificatePrint::dispatch($cert->certificate_id, 'birth');
+        EnqueueCertificatePrint::dispatch($cert->certificate_id, 'birth');
+
         return response()->json(['message' => 'Queued for printing'], 202);
     }
 }

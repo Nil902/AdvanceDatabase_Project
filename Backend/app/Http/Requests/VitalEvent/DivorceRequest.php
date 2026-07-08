@@ -15,8 +15,8 @@ class DivorceRequest extends FormRequest
     {
         return [
             'marriage_cert_id' => 'required|integer|exists:marriage_certificates,certificate_id',
-            'ruling_date'      => 'required|date',
-            'court_reference'  => 'nullable|string|max:100',
+            'ruling_date' => 'required|date',
+            'court_reference' => 'nullable|string|max:100',
         ];
     }
 }

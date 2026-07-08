@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Mongo\DocumentAttachment;
 use Illuminate\Database\Eloquent\Model;
 
 class FamilyDocumentAttachment extends Model
 {
     protected $primaryKey = 'attachment_id';
+
     public $timestamps = false; // uses uploaded_at instead
 
     protected $fillable = [
@@ -29,7 +31,7 @@ class FamilyDocumentAttachment extends Model
     // Convenience accessor to pull OCR text / tags / expiry metadata from Mongo
     public function mongoMetadata()
     {
-        return \App\Models\Mongo\DocumentAttachment::where('pg_attachment_id', $this->attachment_id)->first();
+        return DocumentAttachment::where('pg_attachment_id', $this->attachment_id)->first();
     }
 
     // Polymorphic-style helper since reference_table/reference_id point at

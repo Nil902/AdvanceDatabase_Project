@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class AdoptionAgency extends Model
 {
     protected $primaryKey = 'agency_id';
+
     public $timestamps = false;
 
     protected $fillable = ['agency_name', 'license_number', 'country', 'is_active'];

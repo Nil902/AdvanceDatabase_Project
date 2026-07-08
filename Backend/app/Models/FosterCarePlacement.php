@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class FosterCarePlacement extends Model
 {
     protected $primaryKey = 'placement_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = ['child_id', 'foster_parent_id', 'agency_id', 'start_date', 'end_date', 'status'];

@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class DependencyRegistry extends Model
 {
     protected $table = 'dependency_registry';
+
     protected $primaryKey = 'dependency_id';
+
     public $timestamps = false;
 
     protected $fillable = ['head_id', 'dependent_id', 'dependency_type', 'start_date', 'end_date'];

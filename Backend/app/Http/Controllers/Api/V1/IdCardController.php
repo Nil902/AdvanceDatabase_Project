@@ -10,15 +10,15 @@ use App\Http\Requests\IdCard\ReplaceCardRequest;
 use App\Http\Requests\IdCard\StoreIdCardRequest;
 use App\Http\Requests\IdCard\UpdateStatusRequest;
 use App\Http\Resources\IdCardResource;
-use App\Models\IdentityCard;
 use App\Models\CardRequest;
 use App\Models\CardStatusLog;
 use App\Models\DispatchTracking;
+use App\Models\IdentityCard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Spatie\QueryBuilder\QueryBuilder;
 use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\QueryBuilder;
 
 class IdCardController extends Controller
 {
@@ -142,7 +142,7 @@ class IdCardController extends Controller
                 'card_id' => $oldCard->card_id,
                 'previous_status' => $oldCard->getOriginal('status'),
                 'new_status' => 'revoked',
-                'reason' => 'Replaced: ' . $request->reason,
+                'reason' => 'Replaced: '.$request->reason,
                 'changed_by' => $request->user()->user_id,
                 'changed_at' => now(),
             ]);
@@ -221,6 +221,6 @@ class IdCardController extends Controller
 
     private function generateSerialNumber(): string
     {
-        return 'ID' . date('Ymd') . strtoupper(bin2hex(random_bytes(4)));
+        return 'ID'.date('Ymd').strtoupper(bin2hex(random_bytes(4)));
     }
 }

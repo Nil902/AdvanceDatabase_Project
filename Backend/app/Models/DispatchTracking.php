@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class DispatchTracking extends Model
 {
     protected $table = 'dispatch_tracking';
+
     protected $primaryKey = 'tracking_id';
+
     public $timestamps = false; // uses triggered_at instead
 
     protected $fillable = [

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Province extends Model
 {
     protected $primaryKey = 'province_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = ['province_code', 'province_name_kh', 'province_name_en'];

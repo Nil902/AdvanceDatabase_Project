@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class IdentityCardImage extends Model
 {
     protected $primaryKey = 'image_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = [
@@ -16,6 +17,7 @@ class IdentityCardImage extends Model
     ];
 
     protected $casts = ['uploaded_at' => 'datetime'];
+
     protected $hidden = ['image_data'];
 
     public function card()

@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Mongo\PrintJob;
 use Illuminate\Database\Eloquent\Model;
 
 class CertificatePrintingLog extends Model
 {
     protected $primaryKey = 'print_id';
+
     public $timestamps = false; // uses printed_at instead
 
     protected $fillable = ['staff_id', 'certificate_type', 'reference_id', 'mongo_log_id', 'printed_at'];
@@ -21,6 +23,6 @@ class CertificatePrintingLog extends Model
     // Convenience accessor to pull the full print job document from Mongo
     public function mongoPrintJob()
     {
-        return \App\Models\Mongo\PrintJob::where('pg_print_id', $this->print_id)->first();
+        return PrintJob::where('pg_print_id', $this->print_id)->first();
     }
 }

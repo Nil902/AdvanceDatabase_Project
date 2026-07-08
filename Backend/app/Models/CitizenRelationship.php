@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class CitizenRelationship extends Model
 {
     protected $primaryKey = 'rel_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = ['citizen_id_a', 'citizen_id_b', 'rel_type_id', 'verified'];

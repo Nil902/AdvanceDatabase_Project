@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Mongo\CitizenBiometricDocument;
 use Illuminate\Database\Eloquent\Model;
 
 // Postgres metadata row only — the actual biometric payload lives in
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 class CitizenBiometric extends Model
 {
     protected $primaryKey = 'biometric_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = [
@@ -31,7 +33,7 @@ class CitizenBiometric extends Model
     // Convenience accessor to pull the full Mongo document on demand
     public function mongoDocument()
     {
-        $class = \App\Models\Mongo\CitizenBiometricDocument::class;
+        $class = CitizenBiometricDocument::class;
 
         // Prefer static find if available, otherwise try an instance method.
         if (method_exists($class, 'find')) {

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class MarriageStatusHistory extends Model
 {
     protected $primaryKey = 'status_history_id';
+
     public $timestamps = false; // uses changed_at instead
 
     protected $fillable = ['marriage_cert_id', 'status', 'changed_at', 'changed_by', 'reason'];

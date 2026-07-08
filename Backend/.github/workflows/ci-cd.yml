@@ -98,7 +98,6 @@ jobs:
 
       - name: Check code style (Pint)
         run: vendor/bin/pint --test
-        continue-on-error: true # flip to false once the team agrees on a style baseline
 
       - name: Run test suite
         run: php artisan test
@@ -143,6 +142,9 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Compute image tags
         id: meta

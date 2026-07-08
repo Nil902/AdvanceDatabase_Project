@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\VitalEvent\MarriageRequest;
-use App\Http\Requests\VitalEvent\DivorceRequest;
 use App\Http\Requests\VitalEvent\BirthRequest;
 use App\Http\Requests\VitalEvent\DeathRequest;
+use App\Http\Requests\VitalEvent\DivorceRequest;
+use App\Http\Requests\VitalEvent\MarriageRequest;
 use App\Services\VitalEventService;
 
 class VitalEventController extends Controller

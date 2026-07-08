@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class MarriageCertificate extends Model
 {
     protected $primaryKey = 'certificate_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = [

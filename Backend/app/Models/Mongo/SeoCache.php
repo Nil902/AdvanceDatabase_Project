@@ -9,6 +9,7 @@ use MongoDB\Laravel\Eloquent\Model;
 class SeoCache extends Model
 {
     protected $connection = 'mongodb';
+
     protected $collection = 'seo_cache';
 
     protected $fillable = [

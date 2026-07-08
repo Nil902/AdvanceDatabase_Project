@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class NationalityHistory extends Model
 {
     protected $primaryKey = 'nat_history_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = ['citizen_id', 'nationality_id', 'change_date', 'reason', 'recorded_by'];

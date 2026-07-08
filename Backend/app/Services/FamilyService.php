@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\FamilyUnit;
 use App\Models\CitizenRelationship;
+use App\Models\FamilyUnit;
 use App\Models\RelationshipType;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -60,7 +60,7 @@ class FamilyService
                 $family = FamilyUnit::findOrFail($familyId);
                 $headId = $family->head_citizen_id;
 
-                return DB::select("
+                return DB::select('
                     WITH RECURSIVE family_tree AS (
                         SELECT c.citizen_id, c.full_name_kh, ? as parent_id, 1 as depth
                         FROM citizens c
@@ -72,13 +72,13 @@ class FamilyService
                         JOIN family_tree ft ON cr.citizen_id_a = ft.citizen_id
                     )
                     SELECT * FROM family_tree ORDER BY depth;
-                ", [null, $headId]);
+                ', [null, $headId]);
             }
         );
     }
 
     private function generateFamilyCode(): string
     {
-        return 'FAM' . strtoupper(bin2hex(random_bytes(6)));
+        return 'FAM'.strtoupper(bin2hex(random_bytes(6)));
     }
 }

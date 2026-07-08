@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class PaternityDisputeRecord extends Model
 {
     protected $primaryKey = 'dispute_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = ['child_id', 'claimant_id', 'dna_result', 'dna_test_date', 'court_reference', 'resolved_at'];

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class NationalityStatus extends Model
 {
     protected $primaryKey = 'nationality_id';
+
     public $timestamps = false;
 
     protected $fillable = ['label'];

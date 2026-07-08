@@ -1,16 +1,17 @@
 <?php
 
 // app/Http/Controllers/Auth/PasswordResetController.php
+
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\SystemUser;
 use App\Models\UserAuthToken;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Carbon\Carbon;
 
 class PasswordResetController extends Controller
 {
@@ -49,16 +50,16 @@ class PasswordResetController extends Controller
     {
         $request->validate([
             'email' => 'required|email',
-            'otp' => 'required|numeric'
+            'otp' => 'required|numeric',
         ]);
 
         $record = DB::table('password_otps')->where('email', $request->email)->first();
 
-        if (!$record || Carbon::parse($record->expires_at)->isPast()) {
+        if (! $record || Carbon::parse($record->expires_at)->isPast()) {
             return response()->json(['message' => 'OTP has expired or does not exist.'], 422);
         }
 
-        if (!Hash::check($request->otp, $record->otp)) {
+        if (! Hash::check($request->otp, $record->otp)) {
             return response()->json(['message' => 'Invalid OTP code.'], 422);
         }
 
@@ -71,13 +72,13 @@ class PasswordResetController extends Controller
         $request->validate([
             'email' => 'required|email',
             'otp' => 'required|numeric',
-            'password' => 'required|string|min:8|confirmed'
+            'password' => 'required|string|min:8|confirmed',
         ]);
 
         // Double check OTP validity to prevent direct API bypass spikes
         $record = DB::table('password_otps')->where('email', $request->email)->first();
 
-        if (!$record || Carbon::parse($record->expires_at)->isPast() || !Hash::check($request->otp, $record->otp)) {
+        if (! $record || Carbon::parse($record->expires_at)->isPast() || ! Hash::check($request->otp, $record->otp)) {
             return response()->json(['message' => 'Session expired or invalid token request.'], 422);
         }
 

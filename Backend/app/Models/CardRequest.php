@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class CardRequest extends Model
 {
     protected $primaryKey = 'request_id';
+
     public $timestamps = false; // uses request_date instead
 
     protected $fillable = [

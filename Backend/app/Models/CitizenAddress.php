@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class CitizenAddress extends Model
 {
     protected $primaryKey = 'address_id';
+
     public $timestamps = false;
 
     protected $fillable = [

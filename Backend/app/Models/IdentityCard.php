@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class IdentityCard extends Model
 {
     protected $primaryKey = 'card_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = [

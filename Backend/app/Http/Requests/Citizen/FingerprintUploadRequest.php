@@ -14,7 +14,7 @@ class FingerprintUploadRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'template_data'    => 'required|json',
+            'template_data' => 'required|json',
             'finger_positions' => 'required|array|min:1',
             'finger_positions.*' => 'string|in:right_thumb,right_index,right_middle,right_ring,right_pinky,left_thumb,left_index,left_middle,left_ring,left_pinky',
         ];

@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class CitizenParent extends Model
 {
     protected $table = 'citizen_parents';
+
     protected $primaryKey = 'citizen_parent_id';
+
     public $timestamps = false;
 
     protected $fillable = ['citizen_id', 'parent_id', 'relationship_type']; // father | mother

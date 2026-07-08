@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class GuardianshipExpiryLog extends Model
 {
     protected $primaryKey = 'expiry_id';
+
     public $timestamps = false;
 
     protected $fillable = ['guardianship_id', 'expiry_date', 'notified_at', 'action_taken'];
