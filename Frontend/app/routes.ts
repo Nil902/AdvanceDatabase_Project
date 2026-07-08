@@ -6,8 +6,10 @@ export default [
   route("forgot-password", "routes/request-otp.tsx"),
   route("verify-identity", "routes/verify-otp.tsx"),
   route("reset-password", "routes/forgot-password.tsx"),
-  route("dashboard", "routes/dashboard.tsx"),
-
+  
+  // ── Admin Portal ─────────────────────────────────────────────────────
+  route("admin", "routes/admin/index.tsx"), // <-- Catch /admin and redirect them
+  route("admin/dashboard", "routes/admin/dashboard.tsx"),
   // ── Registrar Portal (NIMS Portal) ──────────────────────────────────
   route("registrar", "routes/registrar/layout.tsx", [
     index("routes/registrar/demographic-report.tsx"),
