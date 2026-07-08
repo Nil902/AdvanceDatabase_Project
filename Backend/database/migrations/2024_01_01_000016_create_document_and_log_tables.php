@@ -63,7 +63,7 @@ return new class extends Migration
 
         Schema::create('certificate_printing_logs', function (Blueprint $table) {
             $table->id('print_id');
-            $table->unsignedBigInteger('staff_id');
+            $table->unsignedBigInteger('staff_id')->nullable();
             $table->string('certificate_type', 50);
             $table->unsignedBigInteger('reference_id');
             $table->string('mongo_log_id', 255)->nullable();

@@ -16,23 +16,29 @@ class EnqueueCertificatePrint implements ShouldQueue
 
     public function __construct(
         private int $certificateId,
-        private string $certificateType
+        private string $certificateType,
+        private ?int $staffId = null
     ) {}
 
     public function handle(): void
     {
-        PrintJob::create([
-            'certificate_id' => $this->certificateId,
-            'certificate_type' => $this->certificateType,
+        $mongoJob = PrintJob::create([
+            'job_type' => $this->certificateType,
+            'reference_table' => $this->certificateType . '_certificates',
+            'reference_id' => $this->certificateId,
             'status' => 'queued',
-            'queued_at' => now(),
+            'priority' => 'normal',
+            'max_attempts' => 3,
+            'current_attempt' => 0,
+            'attempts' => [],
         ]);
 
         CertificatePrintingLog::create([
-            'certificate_id' => $this->certificateId,
+            'staff_id' => $this->staffId,
             'certificate_type' => $this->certificateType,
-            'action' => 'queued',
-            'performed_at' => now(),
+            'reference_id' => $this->certificateId,
+            'mongo_log_id' => (string) $mongoJob->_id,
+            'printed_at' => now(),
         ]);
     }
 }

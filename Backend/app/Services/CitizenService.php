@@ -30,8 +30,8 @@ class CitizenService
     {
         $mongoDoc = CitizenBiometricDocument::create([
             'citizen_id' => $citizenId,
-            'template_data' => $validated['template_data'],
-            'finger_positions' => $validated['finger_positions'],
+            'fingerprint_templates' => $validated['template_data'],
+            'fingers_captured_mask' => $validated['finger_positions'],
             'captured_at' => now(),
         ]);
 

@@ -2,7 +2,7 @@
 
 namespace App\Models\Mongo;
 
-use Jenssegers\Mongodb\Eloquent\Model;
+use MongoDB\Laravel\Eloquent\Model;
 
 // Collection: citizen_biometrics (MongoDB)
 // Stores the actual biometric payloads. The Postgres table of the same

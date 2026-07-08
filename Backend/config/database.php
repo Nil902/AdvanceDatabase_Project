@@ -115,9 +115,15 @@ return [
         ],
         'mongodb' => [
             'driver'   => 'mongodb',
+            'dsn'      => env('MONGO_DSN'),
             'host'     => env('MONGO_HOST', '127.0.0.1'),
-            'port'     => env('MONGO_PORT', 27017),
+            'port'     => (int) env('MONGO_PORT', 27017),
             'database' => env('MONGO_DATABASE', 'civil_registry_docs'),
+            'username' => env('MONGO_USERNAME'),
+            'password' => env('MONGO_PASSWORD'),
+            'options'  => [
+                'authSource' => env('MONGO_AUTH_SOURCE', 'admin'),
+            ],
         ],
 
     ],

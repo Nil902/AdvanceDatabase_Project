@@ -2,7 +2,7 @@
 
 namespace App\Models\Mongo;
 
-use Jenssegers\Mongodb\Eloquent\Model;
+use MongoDB\Laravel\Eloquent\Model;
 
 // Collection: notification_logs (MongoDB)
 // One append-only document per send attempt (SMS/email/push/in-app).

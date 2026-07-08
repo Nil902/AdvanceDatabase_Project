@@ -2,7 +2,7 @@
 
 namespace App\Models\Mongo;
 
-use Jenssegers\Mongodb\Eloquent\Model;
+use MongoDB\Laravel\Eloquent\Model;
 
 // Collection: document_attachments (MongoDB)
 // Metadata only — binary file data lives in PostgreSQL document_attachment_images.
