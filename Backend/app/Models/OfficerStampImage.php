@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class OfficerStampImage extends Model
 {
     protected $primaryKey = 'stamp_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = [

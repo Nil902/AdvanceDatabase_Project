@@ -35,6 +35,7 @@ class HouseholdService
             now()->addMinutes(10),
             function () use ($householdId) {
                 $household = Household::findOrFail($householdId);
+
                 return $household->members()->with('citizen')->get();
             }
         );
@@ -133,6 +134,7 @@ class HouseholdService
             now()->addMinutes(10),
             function () use ($householdId) {
                 Household::findOrFail($householdId);
+
                 return MoveHistory::where('from_household_id', $householdId)
                     ->orWhere('to_household_id', $householdId)
                     ->with('resident')

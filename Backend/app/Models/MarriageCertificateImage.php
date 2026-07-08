@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class MarriageCertificateImage extends Model
 {
     protected $primaryKey = 'image_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = [
@@ -15,6 +16,7 @@ class MarriageCertificateImage extends Model
     ];
 
     protected $casts = ['uploaded_at' => 'datetime'];
+
     protected $hidden = ['image_data'];
 
     public function certificate()

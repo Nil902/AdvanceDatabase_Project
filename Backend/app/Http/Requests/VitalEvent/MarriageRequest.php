@@ -14,11 +14,11 @@ class MarriageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'spouse_a_id'        => 'required|integer|exists:citizens,citizen_id|different:spouse_b_id',
-            'spouse_b_id'        => 'required|integer|exists:citizens,citizen_id',
-            'marriage_date'      => 'required|date',
+            'spouse_a_id' => 'required|integer|exists:citizens,citizen_id|different:spouse_b_id',
+            'spouse_b_id' => 'required|integer|exists:citizens,citizen_id',
+            'marriage_date' => 'required|date',
             'certificate_number' => 'nullable|string|max:100|unique:marriage_certificates,certificate_number',
-            'location'           => 'nullable|string|max:255',
+            'location' => 'nullable|string|max:255',
         ];
     }
 }

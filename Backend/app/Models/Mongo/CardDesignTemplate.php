@@ -9,6 +9,7 @@ use MongoDB\Laravel\Eloquent\Model;
 class CardDesignTemplate extends Model
 {
     protected $connection = 'mongodb';
+
     protected $collection = 'card_design_templates';
 
     protected $fillable = [

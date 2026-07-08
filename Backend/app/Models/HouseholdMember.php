@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class HouseholdMember extends Model
 {
     protected $primaryKey = 'hhm_id';
+
     public $timestamps = false;
 
     protected $fillable = ['household_id', 'citizen_id', 'relation_to_head', 'joined_date', 'left_date'];

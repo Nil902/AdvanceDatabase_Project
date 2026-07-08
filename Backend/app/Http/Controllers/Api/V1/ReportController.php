@@ -31,7 +31,7 @@ class ReportController extends Controller
         ]);
 
         $groupBy = $request->get('group_by', 'gender');
-        $cacheKey = 'reports_demographics_' . $groupBy;
+        $cacheKey = 'reports_demographics_'.$groupBy;
 
         $demographics = Cache::remember($cacheKey, 3600, function () use ($groupBy) {
             $query = DB::table('citizens')

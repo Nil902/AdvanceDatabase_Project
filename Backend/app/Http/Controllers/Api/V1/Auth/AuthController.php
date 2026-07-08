@@ -18,9 +18,9 @@ class AuthController extends Controller
         $credentials = $request->validated();
 
         $user = SystemUser::where(function ($query) use ($credentials) {
-                $query->where('username', $credentials['username'])
-                      ->orWhere('email', $credentials['username']);
-            })
+            $query->where('username', $credentials['username'])
+                ->orWhere('email', $credentials['username']);
+        })
             ->whereNull('deleted_at')
             ->first();
 
@@ -50,7 +50,7 @@ class AuthController extends Controller
         );
 
         return response()->json([
-            'user'  => new SystemUserResource($user->load('role')),
+            'user' => new SystemUserResource($user->load('role')),
             'token' => $plainToken,
             'token_type' => 'Bearer',
         ]);

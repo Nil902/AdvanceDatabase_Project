@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class LegalGuardianship extends Model
 {
     protected $primaryKey = 'guardianship_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = ['minor_id', 'guardian_id', 'start_date', 'end_date', 'court_order_ref', 'status', 'granted_by'];

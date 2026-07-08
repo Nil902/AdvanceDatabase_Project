@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class RegistrationOfficer extends Model
 {
     protected $primaryKey = 'officer_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = [

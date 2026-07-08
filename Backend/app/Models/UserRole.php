@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class UserRole extends Model
 {
     protected $primaryKey = 'role_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = ['role_code', 'role_name_kh', 'role_name_en', 'description'];

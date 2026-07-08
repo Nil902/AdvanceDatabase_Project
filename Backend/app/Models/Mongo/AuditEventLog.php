@@ -9,7 +9,9 @@ use MongoDB\Laravel\Eloquent\Model;
 class AuditEventLog extends Model
 {
     protected $connection = 'mongodb';
+
     protected $collection = 'audit_event_logs';
+
     public $timestamps = false; // append-only; performed_at is the only time field
 
     protected $fillable = [

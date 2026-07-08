@@ -24,7 +24,7 @@ class EnqueueCertificatePrint implements ShouldQueue
     {
         $mongoJob = PrintJob::create([
             'job_type' => $this->certificateType,
-            'reference_table' => $this->certificateType . '_certificates',
+            'reference_table' => $this->certificateType.'_certificates',
             'reference_id' => $this->certificateId,
             'status' => 'queued',
             'priority' => 'normal',

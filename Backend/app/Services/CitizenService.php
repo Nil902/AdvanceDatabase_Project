@@ -44,7 +44,7 @@ class CitizenService
 
     public function assignNationalId(Citizen $citizen): string
     {
-        $nid = 'NID' . str_pad($citizen->citizen_id, 8, '0', STR_PAD_LEFT);
+        $nid = 'NID'.str_pad($citizen->citizen_id, 8, '0', STR_PAD_LEFT);
         $citizen->update(['national_id_number' => $nid]);
         Cache::tags(['citizens'])->forget("citizen:{$citizen->citizen_id}");
 

@@ -10,6 +10,7 @@ use MongoDB\Laravel\Eloquent\Model;
 class CitizenBiometricDocument extends Model
 {
     protected $connection = 'mongodb';
+
     protected $collection = 'citizen_biometrics';
 
     protected $fillable = [

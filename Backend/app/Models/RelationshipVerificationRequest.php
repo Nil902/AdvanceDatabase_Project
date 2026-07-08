@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class RelationshipVerificationRequest extends Model
 {
     protected $primaryKey = 'request_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = ['requester_name', 'requester_user_id', 'target_citizen_id', 'purpose', 'status'];

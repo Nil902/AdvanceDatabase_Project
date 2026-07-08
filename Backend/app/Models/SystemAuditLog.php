@@ -8,7 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 class SystemAuditLog extends Model
 {
     protected $table = 'system_audit_logs';
+
     protected $primaryKey = 'log_id';
+
     public $timestamps = false;
 
     protected $fillable = ['staff_id', 'action_type', 'performed_at'];

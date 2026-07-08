@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class MarriageApplication extends Model
 {
     protected $primaryKey = 'application_id';
+
     public $timestamps = false; // uses submitted_at instead
 
     protected $fillable = ['applicant_a', 'applicant_b', 'status', 'submitted_at', 'reviewed_by', 'reviewed_at', 'notes'];

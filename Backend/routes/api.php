@@ -3,11 +3,11 @@
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\BirthCertificateController;
 use App\Http\Controllers\Api\V1\CitizenController;
-use App\Http\Controllers\Api\V1\IdCardController;
-use App\Http\Controllers\Api\V1\HouseholdController;
 use App\Http\Controllers\Api\V1\FamilyController;
-use App\Http\Controllers\Api\V1\VitalEventController;
+use App\Http\Controllers\Api\V1\HouseholdController;
+use App\Http\Controllers\Api\V1\IdCardController;
 use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\VitalEventController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use Illuminate\Support\Facades\Route;
 

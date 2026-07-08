@@ -9,6 +9,7 @@ use MongoDB\Laravel\Eloquent\Model;
 class DocumentAttachment extends Model
 {
     protected $connection = 'mongodb';
+
     protected $collection = 'document_attachments';
 
     protected $fillable = [

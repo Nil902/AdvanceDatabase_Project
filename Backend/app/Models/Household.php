@@ -10,6 +10,7 @@ class Household extends Model
 
     // This table names its creation column "created_date", not "created_at"
     const CREATED_AT = 'created_date';
+
     const UPDATED_AT = 'updated_at';
 
     protected $fillable = [

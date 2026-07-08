@@ -9,7 +9,9 @@ use MongoDB\Laravel\Eloquent\Model;
 class NotificationLog extends Model
 {
     protected $connection = 'mongodb';
+
     protected $collection = 'notification_logs';
+
     public $timestamps = false; // queued_at/sent_at/delivered_at cover lifecycle
 
     protected $fillable = [

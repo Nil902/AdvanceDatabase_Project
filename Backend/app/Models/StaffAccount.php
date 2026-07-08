@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class StaffAccount extends Model
 {
     protected $primaryKey = 'staff_id';
+
     public $timestamps = false;
 
     protected $fillable = ['full_name', 'role'];

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class UserActionLog extends Model
 {
     protected $primaryKey = 'log_id';
+
     public $timestamps = false;
 
     protected $fillable = [

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class CitizenMaritalStatus extends Model
 {
     protected $primaryKey = 'status_id';
+
     public $timestamps = false;
 
     protected $fillable = ['citizen_id', 'status', 'effective_date', 'recorded_by'];

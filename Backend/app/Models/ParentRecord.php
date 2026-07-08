@@ -9,7 +9,9 @@ use Illuminate\Database\Eloquent\Model;
 class ParentRecord extends Model
 {
     protected $table = 'parents';
+
     protected $primaryKey = 'parent_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = [

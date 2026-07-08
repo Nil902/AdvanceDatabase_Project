@@ -14,9 +14,9 @@ class AddMemberRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'citizen_id'   => 'required|integer|exists:citizens,citizen_id',
+            'citizen_id' => 'required|integer|exists:citizens,citizen_id',
             'relationship' => 'required|string|exists:relationship_types,label',
-            'verified'     => 'nullable|boolean',
+            'verified' => 'nullable|boolean',
         ];
     }
 }

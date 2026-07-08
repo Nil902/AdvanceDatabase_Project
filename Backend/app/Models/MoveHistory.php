@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class MoveHistory extends Model
 {
     protected $table = 'move_history';
+
     protected $primaryKey = 'id';
+
     public $timestamps = false; // uses recorded_at instead
 
     protected $fillable = [

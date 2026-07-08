@@ -14,9 +14,9 @@ class StoreFamilyRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'family_code'      => 'nullable|string|max:50|unique:family_units,family_code',
-            'head_citizen_id'  => 'required|integer|exists:citizens,citizen_id',
-            'members'          => 'nullable|array',
+            'family_code' => 'nullable|string|max:50|unique:family_units,family_code',
+            'head_citizen_id' => 'required|integer|exists:citizens,citizen_id',
+            'members' => 'nullable|array',
             'members.*.citizen_id' => 'required|integer|exists:citizens,citizen_id',
             'members.*.relationship' => 'required|string|exists:relationship_types,label',
         ];

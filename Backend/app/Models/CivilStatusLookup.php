@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class CivilStatusLookup extends Model
 {
     protected $primaryKey = 'status_id';
+
     public $timestamps = false;
 
     protected $fillable = ['label']; // single | married | divorced | widowed | separated

@@ -14,9 +14,9 @@ class DispatchRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'tracking_number'     => 'required|string|max:100|unique:dispatch_tracking,tracking_number',
-            'distribution_point'  => 'required|string|max:255',
-            'print_facility'      => 'nullable|string|max:255',
+            'tracking_number' => 'required|string|max:100|unique:dispatch_tracking,tracking_number',
+            'distribution_point' => 'required|string|max:255',
+            'print_facility' => 'nullable|string|max:255',
         ];
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\SystemUser;
+
 return [
 
     'defaults' => [
@@ -17,7 +19,7 @@ return [
     'providers' => [
         'system_users' => [
             'driver' => 'eloquent',
-            'model' => App\Models\SystemUser::class,
+            'model' => SystemUser::class,
         ],
     ],
 

@@ -1,10 +1,12 @@
 <?php
 
+use App\Http\Middleware\EnsureAbility;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use App\Http\Middleware\EnsureAbility;
-
+use Illuminate\Validation\ValidationException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -21,23 +23,23 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo(fn () => null);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) {
+        $exceptions->render(function (AuthenticationException $e, $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
                 return response()->json(['message' => 'Unauthenticated.'], 401);
             }
         });
 
-        $exceptions->render(function (\Throwable $e, $request) {
+        $exceptions->render(function (Throwable $e, $request) {
             if ($request->is('api/*')) {
                 $status = match (true) {
-                    $e instanceof \Illuminate\Validation\ValidationException => 422,
-                    $e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException => 404,
+                    $e instanceof ValidationException => 422,
+                    $e instanceof ModelNotFoundException => 404,
                     default => 500,
                 };
 
                 return response()->json([
                     'message' => $e->getMessage(),
-                    'errors'  => $e instanceof \Illuminate\Validation\ValidationException ? $e->errors() : null,
+                    'errors' => $e instanceof ValidationException ? $e->errors() : null,
                 ], $status);
             }
         });

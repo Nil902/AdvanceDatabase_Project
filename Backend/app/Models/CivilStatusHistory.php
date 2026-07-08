@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class CivilStatusHistory extends Model
 {
     protected $primaryKey = 'history_id';
+
     const UPDATED_AT = null;
 
     protected $fillable = ['citizen_id', 'status_id', 'effective_date', 'recorded_by'];
