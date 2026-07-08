@@ -8,7 +8,7 @@ class StoreBirthCertificateRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentAccessToken()->can('birth:create');
+        return $this->user()->currentToken->hasAbility('birth:create');
     }
 
     public function rules(): array

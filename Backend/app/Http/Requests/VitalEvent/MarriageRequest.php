@@ -8,7 +8,7 @@ class MarriageRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentAccessToken()->can('vital:marriage');
+        return $this->user()->currentToken->hasAbility('vital:marriage');
     }
 
     public function rules(): array

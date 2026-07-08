@@ -8,7 +8,7 @@ class StoreFamilyRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentAccessToken()->can('family:create');
+        return $this->user()->currentToken->hasAbility('family:create');
     }
 
     public function rules(): array

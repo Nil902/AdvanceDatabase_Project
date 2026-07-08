@@ -8,7 +8,7 @@ class ChangeHeadRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentAccessToken()->can('household:change_head');
+        return $this->user()->currentToken->hasAbility('household:change_head');
     }
 
     public function rules(): array

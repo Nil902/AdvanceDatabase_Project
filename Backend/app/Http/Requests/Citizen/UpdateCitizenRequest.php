@@ -8,7 +8,7 @@ class UpdateCitizenRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentAccessToken()->can('citizen:update');
+        return $this->user()->currentToken->hasAbility('citizen:update');
     }
 
     public function rules(): array

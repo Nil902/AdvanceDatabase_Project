@@ -8,7 +8,7 @@ class AddMemberRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentAccessToken()->can('household:add_member');
+        return $this->user()->currentToken->hasAbility('household:add_member');
     }
 
     public function rules(): array

@@ -18,8 +18,8 @@ class BirthCertificateController extends Controller
     public function index(Request $request)
     {
         $certs = QueryBuilder::for(BirthCertificate::class)
-            ->allowedFilters(['status', AllowedFilter::exact('citizen_id')])
-            ->allowedSorts(['issue_date', 'registered_date'])
+            ->allowedFilters('status', AllowedFilter::exact('citizen_id'))
+            ->allowedSorts('issue_date', 'registered_date')
             ->with(['citizen', 'officer'])
             ->paginate($request->get('per_page', 20));
 

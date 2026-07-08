@@ -8,7 +8,7 @@ class UpdateFamilyRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentAccessToken()->can('family:update');
+        return $this->user()->currentToken->hasAbility('family:update');
     }
 
     public function rules(): array

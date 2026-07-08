@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\SystemUser;
+use App\Models\UserAuthToken;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -13,31 +14,34 @@ use Carbon\Carbon;
 
 class PasswordResetController extends Controller
 {
-    // Step 1: Generate & Send OTP
     public function sendOtp(Request $request)
     {
-        $request->validate(['email' => 'required|email|exists:system_users,email']);
+        $request->validate(['email' => 'required|email']);
 
         $email = $request->email;
-        $otp = rand(100000, 999999); // Secure 6-digit code
 
-        // Clear any previous OTPs for this email
+        $user = SystemUser::where('email', $email)->first();
+
+        if (! $user) {
+            return response()->json(['message' => 'If that email is registered, an OTP has been sent.']);
+        }
+
+        $otp = random_int(100000, 999999);
+
         DB::table('password_otps')->where('email', $email)->delete();
 
-        // Store OTP with a 10-minute lifetime
         DB::table('password_otps')->insert([
             'email' => $email,
-            'otp' => Hash::make($otp), // Hash it for security
+            'otp' => Hash::make($otp),
             'expires_at' => Carbon::now()->addMinutes(10),
-            'created_at' => Carbon::now()
+            'created_at' => Carbon::now(),
         ]);
 
-        // Send Email (Create a standard Laravel Mailable or use raw mail for testing)
         Mail::raw("Your password reset code is: {$otp}. It expires in 10 minutes.", function ($message) use ($email) {
             $message->to($email)->subject('Password Reset OTP');
         });
 
-        return response()->json(['message' => 'OTP sent successfully to your email.']);
+        return response()->json(['message' => 'If that email is registered, an OTP has been sent.']);
     }
 
     // Step 2: Verify OTP
@@ -79,10 +83,14 @@ class PasswordResetController extends Controller
 
         $user = SystemUser::where('email', $request->email)->firstOrFail();
         $user->update([
-            'password_hash' => Hash::make($request->password)
+            'password_hash' => Hash::make($request->password),
+            'password_changed_at' => now(),
         ]);
 
-        // Clean up OTP entry
+        UserAuthToken::where('user_id', $user->user_id)
+            ->whereNull('revoked_at')
+            ->update(['revoked_at' => now()]);
+
         DB::table('password_otps')->where('email', $request->email)->delete();
 
         return response()->json(['message' => 'Your password has been successfully updated.']);

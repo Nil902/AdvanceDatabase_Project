@@ -8,7 +8,7 @@ class DeathRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentAccessToken()->can('vital:death');
+        return $this->user()->currentToken->hasAbility('vital:death');
     }
 
     public function rules(): array

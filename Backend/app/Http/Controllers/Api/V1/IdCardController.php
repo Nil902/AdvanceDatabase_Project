@@ -25,13 +25,13 @@ class IdCardController extends Controller
     public function search(Request $request)
     {
         $cards = QueryBuilder::for(IdentityCard::class)
-            ->allowedFilters([
+            ->allowedFilters(
                 AllowedFilter::exact('citizen_id'),
                 AllowedFilter::exact('status'),
                 AllowedFilter::exact('card_type'),
                 'card_serial_number',
-            ])
-            ->allowedSorts(['issue_date', 'expiry_date'])
+            )
+            ->allowedSorts('issue_date', 'expiry_date')
             ->with(['citizen'])
             ->paginate($request->get('per_page', 20));
 
@@ -203,9 +203,7 @@ class IdCardController extends Controller
 
     public function verifyPublic(PublicVerifyRequest $request)
     {
-        $card = IdentityCard::where('card_serial_number', $request->card_serial_number)
-            ->with('citizen')
-            ->first();
+        $card = IdentityCard::where('card_serial_number', $request->card_serial_number)->first();
 
         if (! $card) {
             return response()->json(['valid' => false, 'message' => 'Card not found'], 404);
@@ -215,7 +213,9 @@ class IdCardController extends Controller
 
         return response()->json([
             'valid' => $valid,
-            'card' => $valid ? new IdCardResource($card) : null,
+            'card_serial_number' => $card->card_serial_number,
+            'status' => $card->status,
+            'expiry_date' => $card->expiry_date?->toDateString(),
         ]);
     }
 

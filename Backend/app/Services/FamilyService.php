@@ -62,16 +62,17 @@ class FamilyService
 
                 return DB::select("
                     WITH RECURSIVE family_tree AS (
-                        SELECT citizen_id, full_name_kh, parent_id, 1 as depth
-                        FROM citizens
-                        WHERE citizen_id = ?
-                        UNION ALL
-                        SELECT c.citizen_id, c.full_name_kh, c.parent_id, ft.depth + 1
+                        SELECT c.citizen_id, c.full_name_kh, ? as parent_id, 1 as depth
                         FROM citizens c
-                        JOIN family_tree ft ON c.parent_id = ft.citizen_id
+                        WHERE c.citizen_id = ?
+                        UNION ALL
+                        SELECT c.citizen_id, c.full_name_kh, cr.citizen_id_a as parent_id, ft.depth + 1
+                        FROM citizen_relationships cr
+                        JOIN citizens c ON c.citizen_id = cr.citizen_id_b
+                        JOIN family_tree ft ON cr.citizen_id_a = ft.citizen_id
                     )
                     SELECT * FROM family_tree ORDER BY depth;
-                ", [$headId]);
+                ", [null, $headId]);
             }
         );
     }

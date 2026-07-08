@@ -8,7 +8,7 @@ class ReplaceCardRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->currentAccessToken()->can('id_card:replace');
+        return $this->user()->currentToken->hasAbility('id_card:replace');
     }
 
     public function rules(): array

@@ -83,7 +83,16 @@ class VitalEventService
     {
         DB::transaction(function () use ($data) {
             $citizen = Citizen::findOrFail($data['citizen_id']);
-            $citizen->update(['deceased_at' => now()]);
+            $citizen->update(['date_of_death' => $data['date_of_death'] ?? now()]);
+
+            $deceasedStatus = \App\Models\CivilStatusLookup::where('label', 'deceased')->first();
+
+            \App\Models\CivilStatusHistory::create([
+                'citizen_id' => $citizen->citizen_id,
+                'status_id' => $deceasedStatus?->status_id,
+                'effective_date' => $data['date_of_death'] ?? now(),
+                'recorded_by' => $data['recorded_by'] ?? null,
+            ]);
         });
 
         Cache::tags(['citizens'])->forget("citizen:{$data['citizen_id']}");
