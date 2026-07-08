@@ -33,15 +33,37 @@ services:
       - ./storage/app:/var/www/html/storage/app
 
   postgres: # Server 4 — primary database
-    image: postgres:16-alpine
+    build:
+      context: ./docker/postgres
     environment:
       POSTGRES_DB: civil_registry
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+    command: postgres -c config_file=/etc/postgresql/pgbadger.conf
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - pg-logs:/var/log/postgresql
+
+  pgbadger: # PostgreSQL log analyzer — generates reports on a cron
+    build:
+      context: ./docker/pgbadger
+    depends_on:
+      - postgres
+    volumes:
+      - pg-logs:/var/log/postgresql:ro
+      - pgbadger-reports:/var/www/pgbadger
+      - pgbadger-data:/var/lib/pgbadger
+
+  pgbadger-web: # Browse pgBadger HTML reports at :8081
+    image: nginx:alpine
+    depends_on:
+      - pgbadger
+    volumes:
+      - pgbadger-reports:/usr/share/nginx/html:ro
+    ports:
+      - "8081:80"
 
   mongo: # Server 5 — secondary database
     image: mongo:7
@@ -59,5 +81,8 @@ services:
 
 volumes:
   pgdata:
+  pg-logs:
+  pgbadger-reports:
+  pgbadger-data:
   mongodata:
   redisdata:

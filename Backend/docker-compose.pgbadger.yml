@@ -1,0 +1,39 @@
+# Deploy on Server 4 (the PostgreSQL droplet) alongside the database.
+# Assumes PostgreSQL is configured with the pgbadger.conf logging settings
+# and writes logs to the pg-logs volume or /var/log/postgresql on the host.
+#
+# Usage:
+#   docker compose -f docker-compose.pgbadger.yml up -d
+#
+# Reports are served at http://<server-4-ip>:8081
+
+services:
+  pgbadger:
+    build:
+      context: ./docker/pgbadger
+    restart: unless-stopped
+    volumes:
+      - pg-logs:/var/log/postgresql:ro
+      - pgbadger-reports:/var/www/pgbadger
+      - pgbadger-data:/var/lib/pgbadger
+
+  pgbadger-web:
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on:
+      - pgbadger
+    volumes:
+      - pgbadger-reports:/usr/share/nginx/html:ro
+    ports:
+      - "8081:80"
+
+volumes:
+  pg-logs:
+    # In production, bind-mount the actual PG log directory instead:
+    # driver: local
+    # driver_opts:
+    #   type: none
+    #   o: bind
+    #   device: /var/log/postgresql
+  pgbadger-reports:
+  pgbadger-data:
