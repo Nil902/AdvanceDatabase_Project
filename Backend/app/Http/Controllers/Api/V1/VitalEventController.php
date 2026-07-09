@@ -47,7 +47,10 @@ class VitalEventController extends Controller
 
     public function death(DeathRequest $request)
     {
-        $this->vitalEventService->recordDeath($request->validated());
+        $this->vitalEventService->recordDeath(
+            $request->validated(),
+            $request->user()->user_id
+        );
 
         return response()->json(['message' => 'Death recorded'], 201);
     }

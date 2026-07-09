@@ -81,19 +81,19 @@ class VitalEventService
         return $cert;
     }
 
-    public function recordDeath(array $data): void
+    public function recordDeath(array $data, int $recordedBy): void
     {
-        DB::transaction(function () use ($data) {
+        DB::transaction(function () use ($data, $recordedBy) {
             $citizen = Citizen::findOrFail($data['citizen_id']);
             $citizen->update(['date_of_death' => $data['date_of_death'] ?? now()]);
 
-            $deceasedStatus = CivilStatusLookup::where('label', 'deceased')->first();
+            $deceasedStatus = CivilStatusLookup::where('label', 'deceased')->firstOrFail();
 
             CivilStatusHistory::create([
                 'citizen_id' => $citizen->citizen_id,
-                'status_id' => $deceasedStatus?->status_id,
+                'status_id' => $deceasedStatus->status_id,
                 'effective_date' => $data['date_of_death'] ?? now(),
-                'recorded_by' => $data['recorded_by'] ?? null,
+                'recorded_by' => $recordedBy,
             ]);
         });
 

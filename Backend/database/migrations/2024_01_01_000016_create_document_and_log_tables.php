@@ -88,17 +88,6 @@ return new class extends Migration
             $table->foreign('user_id')->references('user_id')->on('system_users');
         });
 
-        Schema::create('system_password_reset_tokens', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('user_id');
-            $table->string('token_hash', 255);
-            $table->timestamp('expires_at')->nullable();
-            $table->timestamp('used_at')->nullable();
-            $table->timestamp('created_at')->nullable();
-
-            $table->foreign('user_id')->references('user_id')->on('system_users');
-        });
-
         Schema::create('relationship_verification_requests', function (Blueprint $table) {
             $table->id('request_id');
             $table->string('requester_name', 255);
@@ -116,7 +105,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('relationship_verification_requests');
-        Schema::dropIfExists('system_password_reset_tokens');
         Schema::dropIfExists('user_action_logs');
         Schema::dropIfExists('certificate_printing_logs');
         Schema::dropIfExists('system_audit_logs');
