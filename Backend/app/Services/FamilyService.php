@@ -62,7 +62,7 @@ class FamilyService
 
                 return DB::select('
                     WITH RECURSIVE family_tree AS (
-                        SELECT c.citizen_id, c.full_name_kh, ? as parent_id, 1 as depth
+                        SELECT c.citizen_id, c.full_name_kh, CAST(? AS BIGINT) as parent_id, 1 as depth
                         FROM citizens c
                         WHERE c.citizen_id = ?
                         UNION ALL
