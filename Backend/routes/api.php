@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\CitizenController;
 use App\Http\Controllers\Api\V1\FamilyController;
 use App\Http\Controllers\Api\V1\HouseholdController;
 use App\Http\Controllers\Api\V1\IdCardController;
+use App\Http\Controllers\Api\V1\LocationController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\VitalEventController;
 use App\Http\Controllers\Auth\PasswordResetController;
@@ -33,6 +34,14 @@ Route::prefix('v1')->group(function () {
     // Public ID card verification – third‑party validation (rate‑limited)
     Route::post('id-cards/verify', [IdCardController::class, 'verifyPublic'])
         ->middleware('throttle:30,1');
+
+    // ── Location Data (public, Redis-cached) ────────────────────────────
+    Route::prefix('locations')->group(function () {
+        Route::get('provinces', [LocationController::class, 'provinces']);
+        Route::get('provinces/{provinceCode}/districts', [LocationController::class, 'districts']);
+        Route::get('districts/{districtCode}/communes', [LocationController::class, 'communes']);
+        Route::get('communes/{communeCode}/villages', [LocationController::class, 'villages']);
+    });
 
     // ── Authenticated Endpoints (any valid token) ──────────────────────
     Route::middleware('auth:api')->group(function () {
@@ -100,5 +109,8 @@ Route::prefix('v1')->group(function () {
             ->middleware('ability:reports:read');
         Route::get('reports/export', [ReportController::class, 'export'])
             ->middleware('ability:reports:read');
+
+        // ── Location Cache Management ────────────────────────────────────
+        Route::delete('locations/cache', [LocationController::class, 'clearCache']);
     });
 });

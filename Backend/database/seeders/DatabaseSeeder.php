@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             CivilStatusLookupSeeder::class,
             AdminUserSeeder::class,
+            GeographySeeder::class,
         ]);
 
         User::factory()->create([
