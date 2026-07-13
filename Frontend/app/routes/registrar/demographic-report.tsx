@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Home, CreditCard, BookMarked, Activity, Users2, Download, X, CheckCircle2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Home, CreditCard, BookMarked, Activity, Users2, Download, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
+import { api, ApiError } from '~/lib/api';
 
 interface AgeGroup {
   label: string;
@@ -14,31 +15,36 @@ interface AreaDensity {
   count: number;
 }
 
-// TODO: replace all of this with real data fetched from your Laravel API
-// e.g. GET /api/v1/reports/demographics
-const stats = {
-  totalResidents: 8,
-  activeSmartIds: 4,
-  residencyBooks: 3,
-  livingCitizens: 6,
-  deceasedFolders: 2,
+// ── API response shapes (see ReportController) ──────────────────────────────
+interface ReportSummary {
+  total_citizens: number;
+  total_birth_certificates: number;
+  total_marriages: number;
+  total_households: number;
+  total_active_id_cards: number;
+}
+// GET /reports/demographics?group_by=... returns a flat array of { <dimension>, total }
+interface GenderRow { gender: string; total: number }
+interface AgeRow { age_group: string; total: number }
+interface ProvinceRow { province_name_en: string; total: number }
+
+// Display config for the four age buckets the API bins into (see the SQL CASE
+// in ReportController::demographics).
+const AGE_ORDER = ['0-17', '18-34', '35-59', '60+'] as const;
+const AGE_DISPLAY: Record<string, { label: string; labelKh: string; colorClass: string }> = {
+  '0-17': { label: '0–17 Years (Minors)', labelKh: 'អនីតិជន', colorClass: 'bg-sky-400' },
+  '18-34': { label: '18–34 Years (Youth)', labelKh: 'យុវជន', colorClass: 'bg-emerald-400' },
+  '35-59': { label: '35–59 Years (Adults)', labelKh: 'មនុស្សពេញវ័យ', colorClass: 'bg-amber-400' },
+  '60+': { label: '60+ Years (Seniors)', labelKh: 'មនុស្សចាស់', colorClass: 'bg-indigo-400' },
 };
 
-const ageGroups: AgeGroup[] = [
-  { label: '0–14 Years (Children)', labelKh: 'កុមារ', count: 2, percent: 25, colorClass: 'bg-sky-400' },
-  { label: '15–24 Years (Youth)', labelKh: 'យុវជន', count: 0, percent: 0, colorClass: 'bg-emerald-400' },
-  { label: '25–54 Years (Adults)', labelKh: 'មនុស្សពេញវ័យ', count: 5, percent: 63, colorClass: 'bg-amber-400' },
-  { label: '55+ Years (Seniors)', labelKh: 'មនុស្សចាស់', count: 1, percent: 13, colorClass: 'bg-indigo-400' },
-];
-
-const genderSplit = { male: 5, female: 3 };
-
-const areaDensity: AreaDensity[] = [
-  { name: 'Kilomet Prammouy', count: 3 },
-  { name: 'Chrang Chamreh I', count: 2 },
-  { name: 'Russey Keo', count: 2 },
-  { name: 'Tuol Sangkae I', count: 1 },
-];
+const emptySummary: ReportSummary = {
+  total_citizens: 0,
+  total_birth_certificates: 0,
+  total_marriages: 0,
+  total_households: 0,
+  total_active_id_cards: 0,
+};
 
 // TODO: pull from logged-in registrar / server clock instead of hardcoding
 const reportMeta = {
@@ -53,15 +59,88 @@ export default function DemographicReportPage() {
   const [showReport, setShowReport] = useState(false);
   const [showDownloadToast, setShowDownloadToast] = useState(false);
 
+  // ── Server data ───────────────────────────────────────────────────────────
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<ReportSummary>(emptySummary);
+  const [ageGroups, setAgeGroups] = useState<AgeGroup[]>([]);
+  const [genderSplit, setGenderSplit] = useState({ male: 0, female: 0 });
+  const [areaDensity, setAreaDensity] = useState<AreaDensity[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const [summaryRes, genderRes, ageRes, provinceRes] = await Promise.all([
+          api.get<ReportSummary>('/reports/summary'),
+          api.get<GenderRow[]>('/reports/demographics', { group_by: 'gender' }),
+          api.get<AgeRow[]>('/reports/demographics', { group_by: 'age_group' }),
+          api.get<ProvinceRow[]>('/reports/demographics', { group_by: 'province' }),
+        ]);
+        if (cancelled) return;
+
+        setSummary(summaryRes);
+
+        const male = genderRes.find((r) => /^m/i.test(r.gender ?? ''))?.total ?? 0;
+        const female = genderRes.find((r) => /^f/i.test(r.gender ?? ''))?.total ?? 0;
+        setGenderSplit({ male, female });
+
+        const ageTotal = ageRes.reduce((sum, r) => sum + Number(r.total), 0);
+        setAgeGroups(
+          AGE_ORDER.map((bucket) => {
+            const count = Number(ageRes.find((r) => r.age_group === bucket)?.total ?? 0);
+            const meta = AGE_DISPLAY[bucket];
+            return {
+              label: meta.label,
+              labelKh: meta.labelKh,
+              colorClass: meta.colorClass,
+              count,
+              percent: ageTotal > 0 ? Math.round((count / ageTotal) * 100) : 0,
+            };
+          }),
+        );
+
+        setAreaDensity(
+          provinceRes
+            .map((r) => ({ name: r.province_name_en, count: Number(r.total) }))
+            .sort((a, b) => b.count - a.count),
+        );
+      } catch (err) {
+        if (cancelled) return;
+        setError(err instanceof ApiError ? err.message : 'Failed to load demographic data.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // ── Derived values (guarded against empty data) ─────────────────────────────
+  const stats = {
+    totalResidents: summary.total_citizens,
+    activeSmartIds: summary.total_active_id_cards,
+    residencyBooks: summary.total_households,
+    livingCitizens: summary.total_citizens,
+    birthCertificates: summary.total_birth_certificates,
+  };
+
   const totalGender = genderSplit.male + genderSplit.female;
-  const malePercent = Math.round((genderSplit.male / totalGender) * 100);
-  const femalePercent = 100 - malePercent;
+  const malePercent = totalGender > 0 ? Math.round((genderSplit.male / totalGender) * 100) : 0;
+  const femalePercent = totalGender > 0 ? 100 - malePercent : 0;
 
   const donutStyle: React.CSSProperties = {
     background: `conic-gradient(#3b82f6 0% ${malePercent}%, #ec4899 ${malePercent}% 100%)`,
   };
 
   const totalAreaCount = areaDensity.reduce((sum, a) => sum + a.count, 0);
+  const maxAreaCount = areaDensity.reduce((max, a) => Math.max(max, a.count), 0);
 
   const handleDownloadPdf = () => {
     // TODO: replace with a real PDF export.
@@ -76,6 +155,27 @@ export default function DemographicReportPage() {
     setTimeout(() => setShowDownloadToast(false), 3000);
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-32 text-sm text-slate-500">
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+        Loading demographic insights…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-4 text-xs text-red-800">
+        <AlertCircle className="h-4 w-4 shrink-0 stroke-[2.5]" />
+        <div>
+          <p className="font-bold">Could not load report data</p>
+          <p className="mt-0.5">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -89,7 +189,7 @@ export default function DemographicReportPage() {
         <StatCard label="Active Smart IDs" value={stats.activeSmartIds} icon={CreditCard} iconColor="text-emerald-600" iconBg="bg-emerald-50" valueColor="text-emerald-600" />
         <StatCard label="Residency Books" value={stats.residencyBooks} icon={BookMarked} iconColor="text-amber-600" iconBg="bg-amber-50" valueColor="text-amber-600" />
         <StatCard label="Living Citizens" value={stats.livingCitizens} icon={Activity} iconColor="text-indigo-600" iconBg="bg-indigo-50" valueColor="text-slate-900" />
-        <StatCard label="Deceased Folders" value={stats.deceasedFolders} icon={Users2} iconColor="text-rose-600" iconBg="bg-rose-50" valueColor="text-rose-600" />
+        <StatCard label="Birth Certificates" value={stats.birthCertificates} icon={Users2} iconColor="text-rose-600" iconBg="bg-rose-50" valueColor="text-rose-600" />
       </div>
 
       {/* AGE BREAKDOWN + GENDER DISTRIBUTION */}
@@ -97,7 +197,7 @@ export default function DemographicReportPage() {
         <div className="col-span-2 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-sm font-bold text-slate-900">Age Group Breakdown Statistics</h2>
-            <span className="text-[10px] font-semibold text-slate-400">Static freeze bracket</span>
+            <span className="text-[10px] font-semibold text-slate-400">Live from registry</span>
           </div>
           <div className="space-y-5">
             {ageGroups.map((group) => (
@@ -148,23 +248,26 @@ export default function DemographicReportPage() {
             Export PDF Report
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-x-10 gap-y-5">
-          {areaDensity.map((area) => {
-            const maxCount = Math.max(...areaDensity.map((a) => a.count));
-            const percent = (area.count / maxCount) * 100;
-            return (
-              <div key={area.name}>
-                <div className="flex items-center justify-between mb-1.5 text-xs">
-                  <span className="font-semibold text-slate-700">{area.name}</span>
-                  <span className="text-slate-400">{area.count} citizens registered</span>
+        {areaDensity.length === 0 ? (
+          <p className="text-xs text-slate-400">No citizens registered against a province yet.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-x-10 gap-y-5">
+            {areaDensity.map((area) => {
+              const percent = maxAreaCount > 0 ? (area.count / maxAreaCount) * 100 : 0;
+              return (
+                <div key={area.name}>
+                  <div className="flex items-center justify-between mb-1.5 text-xs">
+                    <span className="font-semibold text-slate-700">{area.name}</span>
+                    <span className="text-slate-400">{area.count} citizens registered</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-full rounded-full bg-indigo-400" style={{ width: `${percent}%` }} />
+                  </div>
                 </div>
-                <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                  <div className="h-full rounded-full bg-indigo-400" style={{ width: `${percent}%` }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── EXPORT / OFFICIAL REPORT MODAL ─────────────────────────────── */}
@@ -223,7 +326,7 @@ export default function DemographicReportPage() {
                 <ReportStat label="Total Database Folders" value={`${stats.totalResidents} citizens`} />
                 <ReportStat label="Active Smart National ID Cards" value={`${stats.activeSmartIds} smart cards`} />
                 <ReportStat label="Registered Family Residency Books" value={`${stats.residencyBooks} books`} />
-                <ReportStat label="Deceased Folders (Awaiting Archive)" value={`${stats.deceasedFolders} files`} />
+                <ReportStat label="Birth Certificates Issued" value={`${stats.birthCertificates} files`} />
               </div>
             </section>
 
@@ -262,7 +365,7 @@ export default function DemographicReportPage() {
                   {areaDensity.map((a) => (
                     <tr key={a.name} className="border-t border-slate-200">
                       <td className="px-3 py-2">{a.name}</td>
-                      <td className="px-3 py-2">{a.count} citizens ({Math.round((a.count / totalAreaCount) * 100)}%)</td>
+                      <td className="px-3 py-2">{a.count} citizens ({totalAreaCount > 0 ? Math.round((a.count / totalAreaCount) * 100) : 0}%)</td>
                     </tr>
                   ))}
                 </tbody>

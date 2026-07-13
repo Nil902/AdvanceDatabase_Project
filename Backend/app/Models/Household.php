@@ -34,6 +34,12 @@ class Household extends Model
         return $this->belongsTo(Citizen::class, 'household_head_id', 'citizen_id');
     }
 
+    // Alias used by HouseholdResource ('head' => whenLoaded('headCitizen')).
+    public function headCitizen()
+    {
+        return $this->belongsTo(Citizen::class, 'household_head_id', 'citizen_id');
+    }
+
     public function members()
     {
         return $this->hasMany(HouseholdMember::class, 'household_id', 'household_id');

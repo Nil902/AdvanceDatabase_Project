@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavLink, Outlet } from 'react-router';
+import React, { useEffect, useState } from 'react';
+import { NavLink, Outlet, useNavigate } from 'react-router';
 import {
   Search,
   FileBarChart2,
@@ -10,6 +10,7 @@ import {
   LogOut,
   KeyRound,
 } from 'lucide-react';
+import { api, clearSession, getStoredUser, getToken } from '~/lib/api';
 
 const NAV_ITEMS = [
   { to: '/registrar', label: 'Demographic Report', icon: FileBarChart2, color: 'text-blue-400' },
@@ -19,14 +20,46 @@ const NAV_ITEMS = [
   { to: '/registrar/family-management', label: 'Family Management', icon: UsersRound, color: 'text-red-400' },
 ];
 
-// TODO: replace with the actual logged-in registrar's info (from auth context / API)
-const currentRegistrar = {
-  name: 'Lynol Chiv',
-  role: 'Tonle Bassac Commune Hall',
-  desk: 'COMMUNE DESK',
-};
+// Shape stored in localStorage at login (SystemUserResource).
+interface StoredUser {
+  full_name_en: string | null;
+  username: string;
+  email: string;
+  role?: { role_name: string } | null;
+}
 
 export default function RegistrarLayout() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState<StoredUser | null>(null);
+
+  // Route guard: no token → bounce to login. Otherwise hydrate the sidebar
+  // identity box from the stored user.
+  useEffect(() => {
+    if (!getToken()) {
+      navigate('/login', { replace: true });
+      return;
+    }
+    setUser(getStoredUser<StoredUser>());
+  }, [navigate]);
+
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // Even if the server call fails (e.g. already-expired token), clear
+      // locally and continue to the login screen.
+    } finally {
+      clearSession();
+      window.location.href = '/login';
+    }
+  };
+
+  const currentRegistrar = {
+    name: user?.full_name_en || user?.username || 'Registrar',
+    role: user?.email || 'NIMS Portal',
+    desk: (user?.role?.role_name || 'COMMUNE DESK').toUpperCase(),
+  };
+
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
 
@@ -75,10 +108,7 @@ export default function RegistrarLayout() {
           </div>
           <button
             type="button"
-            onClick={() => {
-              // TODO: wire to real logout (clear token / call /auth/logout)
-              window.location.href = '/login';
-            }}
+            onClick={handleLogout}
             className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-red-600/90 py-2 text-[10px] font-bold text-white transition hover:bg-red-600"
           >
             <LogOut className="h-3 w-3" />

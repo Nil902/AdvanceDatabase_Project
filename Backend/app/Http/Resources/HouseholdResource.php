@@ -15,6 +15,13 @@ class HouseholdResource extends JsonResource
             'village_id' => $this->village_id,
             'household_head_id' => $this->household_head_id,
             'head' => new CitizenResource($this->whenLoaded('headCitizen')),
+            'location' => $this->whenLoaded('village', fn () => [
+                'village_id' => $this->village->village_id,
+                'village_name' => $this->village->village_name_en ?? $this->village->village_name_kh,
+                'commune_name' => $this->village->commune?->commune_name_en ?? $this->village->commune?->commune_name_kh,
+                'district_name' => $this->village->commune?->district?->district_name_en ?? $this->village->commune?->district?->district_name_kh,
+                'province_name' => $this->village->commune?->district?->province?->province_name_en ?? $this->village->commune?->district?->province?->province_name_kh,
+            ]),
             'house_no' => $this->house_no,
             'krom_no' => $this->krom_no,
             'police_station' => $this->police_station,
