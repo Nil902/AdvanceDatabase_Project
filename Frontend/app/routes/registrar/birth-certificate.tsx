@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Search,
   UserPlus,
   FileText,
   Download,
   CheckCircle2,
-  Calendar,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
+import { api, ApiError, getStoredUser, type Paginated } from '~/lib/api';
+import { CitizenSearch, type CitizenOption } from '~/components/CitizenSearch';
 
 interface BirthRecord {
   id: string;
@@ -27,38 +30,106 @@ interface BirthRecord {
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100';
 
-// TODO: replace with real data fetched from your Laravel API
-// e.g. GET /api/v1/birth-certificates
-const INITIAL_RECORDS: BirthRecord[] = [
-  { id: '1', khmerName: 'សុខ ណារិទ្ធ', englishName: 'Sok Narith', nid: '010 582 914', status: 'Born Registered', gender: 'Male', civilStatusCode: 'CIV - 120034506', dateOfBirth: '1994-04-12', placeOfBirth: 'Siem Reap', fatherName: 'Sok Chey', motherName: 'Meas Sophia', birthCertNo: 'BC - 1994 - 4402', registryBookRef: 'Book #03A', avatar: DEFAULT_AVATAR },
-  { id: '2', khmerName: 'ជា សុភា', englishName: 'Chea Sophea', nid: '020 938 415', status: 'Born Registered', gender: 'Female', civilStatusCode: 'CIV - 120034507', dateOfBirth: '1996-02-18', placeOfBirth: 'Phnom Penh', fatherName: 'Chea Vuthy', motherName: 'Sok Pisey', birthCertNo: 'BC - 1996 - 2214', registryBookRef: 'Book #03A', avatar: DEFAULT_AVATAR },
-  { id: '3', khmerName: 'ចាន់ បូរី', englishName: 'Chan Borey', nid: '050 392 814', status: 'Born Registered', gender: 'Male', civilStatusCode: 'CIV - 120034508', dateOfBirth: '2018-09-05', placeOfBirth: 'Phnom Penh', fatherName: 'Sok Narith', motherName: 'Chea Sophea', birthCertNo: 'BC - 2018 - 8871', registryBookRef: 'Book #03A', avatar: DEFAULT_AVATAR },
-  { id: '4', khmerName: 'គៀវ កល្យាណ', englishName: 'Keo Kalliyan', nid: '080 194 725', status: 'Born Registered', gender: 'Female', civilStatusCode: 'CIV - 120034509', dateOfBirth: '1988-11-30', placeOfBirth: 'Battambang', fatherName: 'Keo Sarin', motherName: 'Nou Chanthy', birthCertNo: 'BC - 1988 - 1190', registryBookRef: 'Book #02B', avatar: DEFAULT_AVATAR },
-  { id: '5', khmerName: 'វង្ស ពិសិដ្ឋ', englishName: 'Vong Piseth', nid: '030 748 291', status: 'Born Registered', gender: 'Male', civilStatusCode: 'CIV - 120034510', dateOfBirth: '2000-06-21', placeOfBirth: 'Kandal', fatherName: 'Vong Sok', motherName: 'Ly Sreymom', birthCertNo: 'BC - 2000 - 4402', registryBookRef: 'Book #03A', avatar: DEFAULT_AVATAR },
-  { id: '6', khmerName: 'សេង ស្រីនាង', englishName: 'Seng Sreyneang', nid: '090 625 184', status: 'Born Registered', gender: 'Female', civilStatusCode: 'CIV - 120034511', dateOfBirth: '1975-01-14', placeOfBirth: 'Siem Reap', fatherName: 'Seng Vibol', motherName: 'Chin Sopheak', birthCertNo: 'BC - 1975 - 0091', registryBookRef: 'Book #01A', avatar: DEFAULT_AVATAR },
-  { id: '7', khmerName: 'គឹម រិទ្ធ', englishName: 'Kim Rith', nid: '040 182 736', status: 'Born Registered', gender: 'Male', civilStatusCode: 'CIV - 120034512', dateOfBirth: '1969-08-08', placeOfBirth: 'Phnom Penh', fatherName: 'Kim Heng', motherName: 'Sok Ny', birthCertNo: 'BC - 1969 - 0042', registryBookRef: 'Book #01A', avatar: DEFAULT_AVATAR },
-  { id: '8', khmerName: 'ឈឹម នារី', englishName: 'Chhim Neary', nid: '070 591 823', status: 'No Birth Cert.', gender: 'Female', civilStatusCode: '—', dateOfBirth: '—', placeOfBirth: '—', fatherName: '—', motherName: '—', birthCertNo: '—', registryBookRef: '—', avatar: DEFAULT_AVATAR },
-];
+// ── API response shapes (BirthCertificateController@index → BirthCertificateResource) ──
+// index() eager-loads only `citizen` and `officer` — parents / birth place are
+// NOT in the list payload, so those detail fields fall back to "—".
+interface ApiCitizen {
+  id: number;
+  national_id_number: string | null;
+  full_name_kh: string | null;
+  full_name_en: string | null;
+  gender: string | null;
+  date_of_birth: string | null;
+  birth_place?: { province_name?: string | null } | null;
+}
+interface ApiBirthCertificate {
+  id: number;
+  certificate_number: string;
+  status: string;
+  issue_date: string | null;
+  registered_date: string | null;
+  citizen?: ApiCitizen | null;
+  mother?: ApiCitizen | null;
+  father?: ApiCitizen | null;
+}
 
-// TODO: pull from logged-in registrar's session
-const currentRegistrarName = 'Sok Cheat';
+// Map a Laravel BirthCertificateResource onto the UI's BirthRecord shape.
+function toBirthRecord(c: ApiBirthCertificate): BirthRecord {
+  const cz = c.citizen ?? null;
+  return {
+    id: String(c.id),
+    khmerName: cz?.full_name_kh ?? '—',
+    englishName: cz?.full_name_en ?? '—',
+    nid: cz?.national_id_number ?? '—',
+    status: c.status === 'cancelled' ? 'No Birth Cert.' : 'Born Registered',
+    gender: /^f/i.test(cz?.gender ?? '') ? 'Female' : 'Male',
+    civilStatusCode: cz ? `CIV - ${cz.id}` : '—',
+    dateOfBirth: cz?.date_of_birth ?? '—',
+    placeOfBirth: cz?.birth_place?.province_name ?? '—',
+    fatherName: c.father?.full_name_en ?? '—',
+    motherName: c.mother?.full_name_en ?? '—',
+    birthCertNo: c.certificate_number,
+    registryBookRef: c.registered_date ? `Reg. ${c.registered_date}` : '—',
+    avatar: DEFAULT_AVATAR,
+  };
+}
+
+// Logged-in user stored at login (SystemUserResource).
+interface StoredUser {
+  full_name_en: string | null;
+  full_name_kh: string | null;
+  username: string;
+}
 
 export default function BirthCertificatePage() {
-  const [records, setRecords] = useState<BirthRecord[]>(INITIAL_RECORDS);
+  const [records, setRecords] = useState<BirthRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showRegisterForm, setShowRegisterForm] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showDownloadToast, setShowDownloadToast] = useState(false);
 
-  const [formKhmerName, setFormKhmerName] = useState('');
-  const [formEnglishName, setFormEnglishName] = useState('');
-  const [formGender, setFormGender] = useState<'Male' | 'Female'>('Male');
-  const [formDob, setFormDob] = useState(() => new Date().toISOString().slice(0, 10));
-  const [formPlaceOfBirth, setFormPlaceOfBirth] = useState('Phnom Penh');
-  const [formOccupation, setFormOccupation] = useState('Child');
-  const [formFatherName, setFormFatherName] = useState('');
-  const [formMotherName, setFormMotherName] = useState('');
+  // Register-certificate form: the child + parents are resolved to existing
+  // citizens (POST /birth-certificates links a citizen_id, it does not create one).
+  const [formChild, setFormChild] = useState<CitizenOption | null>(null);
+  const [formMother, setFormMother] = useState<CitizenOption | null>(null);
+  const [formFather, setFormFather] = useState<CitizenOption | null>(null);
+  const [formCertNumber, setFormCertNumber] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [registrarName, setRegistrarName] = useState('Registrar');
+
+  // GET /birth-certificates (paginated). Client-side search covers the loaded page.
+  async function loadRecords(): Promise<BirthRecord[]> {
+    const res = await api.get<Paginated<ApiBirthCertificate>>('/birth-certificates', { per_page: 100 });
+    const mapped = res.data.map(toBirthRecord);
+    setRecords(mapped);
+    return mapped;
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        await loadRecords();
+      } catch (err) {
+        if (!cancelled) setError(err instanceof ApiError ? err.message : 'Failed to load birth certificates.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Registrar identity from the logged-in session (client-only; set post-mount).
+  useEffect(() => {
+    const u = getStoredUser<StoredUser>();
+    if (u) setRegistrarName(u.full_name_en || u.full_name_kh || u.username || 'Registrar');
+  }, []);
 
   const filteredRecords = records.filter((r) =>
     r.englishName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -74,48 +145,47 @@ export default function BirthCertificatePage() {
   };
 
   const handleOpenRegisterForm = () => {
-    setFormKhmerName('');
-    setFormEnglishName('');
-    setFormGender('Male');
-    setFormDob(new Date().toISOString().slice(0, 10));
-    setFormPlaceOfBirth('Phnom Penh');
-    setFormOccupation('Child');
-    setFormFatherName('');
-    setFormMotherName('');
+    setFormChild(null);
+    setFormMother(null);
+    setFormFather(null);
+    setFormCertNumber(`BC-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000 + 1000)}`);
+    setActionError(null);
     setSelectedId(null);
     setShowRegisterForm(true);
   };
 
-  const generateNid = () => {
-    const rand = () => Math.floor(Math.random() * 900 + 100);
-    return `${rand()} ${rand()} ${rand()}`;
-  };
-
-  const handleFinalizeRegistration = (e: React.FormEvent) => {
+  // POST /birth-certificates — link an existing citizen (child) + optional parents.
+  const handleFinalizeRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formKhmerName.trim() || !formEnglishName.trim() || !formFatherName.trim() || !formMotherName.trim()) return;
-
-    const year = formDob.slice(0, 4);
-    const newRecord: BirthRecord = {
-      id: crypto.randomUUID(),
-      khmerName: formKhmerName.trim(),
-      englishName: formEnglishName.trim(),
-      nid: generateNid(),
-      status: 'Born Registered',
-      gender: formGender,
-      civilStatusCode: `CIV - ${Math.floor(Math.random() * 900000 + 100000)}`,
-      dateOfBirth: formDob,
-      placeOfBirth: formPlaceOfBirth,
-      fatherName: formFatherName.trim(),
-      motherName: formMotherName.trim(),
-      birthCertNo: `BC - ${year} - ${Math.floor(Math.random() * 9000 + 1000)}`,
-      registryBookRef: 'Book #03A',
-      avatar: DEFAULT_AVATAR,
-    };
-
-    setRecords((prev) => [newRecord, ...prev]);
-    setShowRegisterForm(false);
-    setSelectedId(newRecord.id);
+    setActionError(null);
+    if (!formChild) {
+      setActionError('Select the child — a registered citizen.');
+      return;
+    }
+    if (!formCertNumber.trim()) {
+      setActionError('Enter a certificate number.');
+      return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    setBusy(true);
+    try {
+      await api.post('/birth-certificates', {
+        citizen_id: formChild.id,
+        mother_citizen_id: formMother?.id ?? null,
+        father_citizen_id: formFather?.id ?? null,
+        certificate_number: formCertNumber.trim(),
+        issue_date: today,
+        registered_date: today,
+      });
+      const list = await loadRecords();
+      setShowRegisterForm(false);
+      const created = list.find((r) => r.birthCertNo === formCertNumber.trim());
+      if (created) setSelectedId(created.id);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : 'Failed to register birth certificate.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleDownloadPdf = () => {
@@ -163,10 +233,20 @@ export default function BirthCertificatePage() {
           </div>
 
           <div className="max-h-[520px] overflow-y-auto divide-y divide-slate-100">
-            {filteredRecords.length === 0 && (
+            {loading && (
+              <p className="flex items-center justify-center gap-2 p-6 text-xs text-slate-400">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading civil registry…
+              </p>
+            )}
+            {error && !loading && (
+              <p className="flex items-start gap-2 p-6 text-xs text-red-700">
+                <AlertCircle className="h-4 w-4 shrink-0 stroke-[2.5]" /> {error}
+              </p>
+            )}
+            {!loading && !error && filteredRecords.length === 0 && (
               <p className="p-6 text-center text-xs text-slate-400">No matching records.</p>
             )}
-            {filteredRecords.map((record) => (
+            {!loading && !error && filteredRecords.map((record) => (
               <button
                 key={record.id}
                 type="button"
@@ -195,8 +275,8 @@ export default function BirthCertificatePage() {
             <div className="p-6">
               <div className="flex items-center justify-between mb-5">
                 <div>
-                  <h2 className="text-sm font-bold text-slate-900">Newborn Birth Registration Form</h2>
-                  <p className="text-[11px] text-slate-400">Authorized Official Registrar: {currentRegistrarName}</p>
+                  <h2 className="text-sm font-bold text-slate-900">Register Birth Certificate</h2>
+                  <p className="text-[11px] text-slate-400">Authorized Official Registrar: {registrarName}</p>
                 </div>
                 <button
                   type="button"
@@ -207,94 +287,59 @@ export default function BirthCertificatePage() {
                 </button>
               </div>
 
+              {actionError && (
+                <div className="mb-4 flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0 stroke-[2.5]" /> {actionError}
+                </div>
+              )}
+
               <form onSubmit={handleFinalizeRegistration} className="space-y-4">
+                <Field label="Child (registered citizen)" required>
+                  <CitizenSearch
+                    placeholder="Search citizen by name (KH/ENG) or NID"
+                    selected={formChild}
+                    onSelect={setFormChild}
+                    ringClass="focus:ring-blue-400"
+                  />
+                </Field>
+
                 <div className="grid grid-cols-2 gap-4">
-                  <Field label="Khmer Name (registered)" required>
-                    <input
-                      type="text"
-                      required
-                      value={formKhmerName}
-                      onChange={(e) => setFormKhmerName(e.target.value)}
-                      placeholder="e.g. សុខ ធីតា"
-                      className="input-field"
+                  <Field label="Mother (optional)">
+                    <CitizenSearch
+                      placeholder="Search mother"
+                      selected={formMother}
+                      onSelect={setFormMother}
+                      ringClass="focus:ring-blue-400"
                     />
                   </Field>
-                  <Field label="English Name (LATIN CAPITALS)" required>
-                    <input
-                      type="text"
-                      required
-                      value={formEnglishName}
-                      onChange={(e) => setFormEnglishName(e.target.value.toUpperCase())}
-                      placeholder="e.g. SOK THIDA"
-                      className="input-field"
-                    />
-                  </Field>
-
-                  <Field label="Gender" required>
-                    <select value={formGender} onChange={(e) => setFormGender(e.target.value as 'Male' | 'Female')} className="input-field">
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                    </select>
-                  </Field>
-                  <Field label="Date of Birth" required>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        required
-                        value={formDob}
-                        onChange={(e) => setFormDob(e.target.value)}
-                        className="input-field pr-8"
-                      />
-                      <Calendar className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                    </div>
-                  </Field>
-
-                  <Field label="Place of Birth (Province/City)" required>
-                    <select value={formPlaceOfBirth} onChange={(e) => setFormPlaceOfBirth(e.target.value)} className="input-field">
-                      <option>Phnom Penh</option>
-                      <option>Siem Reap</option>
-                      <option>Battambang</option>
-                      <option>Kandal</option>
-                      <option>Kampong Cham</option>
-                    </select>
-                  </Field>
-                  <Field label="Occupation">
-                    <input
-                      type="text"
-                      value={formOccupation}
-                      onChange={(e) => setFormOccupation(e.target.value)}
-                      className="input-field"
-                    />
-                  </Field>
-
-                  <Field label="Father's Name" required>
-                    <input
-                      type="text"
-                      required
-                      value={formFatherName}
-                      onChange={(e) => setFormFatherName(e.target.value)}
-                      placeholder="Father's full name"
-                      className="input-field"
-                    />
-                  </Field>
-                  <Field label="Mother's Name" required>
-                    <input
-                      type="text"
-                      required
-                      value={formMotherName}
-                      onChange={(e) => setFormMotherName(e.target.value)}
-                      placeholder="Mother's full name"
-                      className="input-field"
+                  <Field label="Father (optional)">
+                    <CitizenSearch
+                      placeholder="Search father"
+                      selected={formFather}
+                      onSelect={setFormFather}
+                      ringClass="focus:ring-blue-400"
                     />
                   </Field>
                 </div>
 
+                <Field label="Certificate Number" required>
+                  <input
+                    type="text"
+                    required
+                    value={formCertNumber}
+                    onChange={(e) => setFormCertNumber(e.target.value)}
+                    placeholder="e.g. BC-2026-0091"
+                    className="input-field"
+                  />
+                </Field>
+
                 <button
                   type="submit"
-                  className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 py-2.5 text-xs font-bold text-white hover:bg-blue-700"
+                  disabled={busy || !formChild}
+                  className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 py-2.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-60"
                 >
-                  <UserPlus className="h-3.5 w-3.5" />
-                  Finalize Civil Registration & Generate NID
+                  {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
+                  Register Birth Certificate
                 </button>
               </form>
             </div>
@@ -448,7 +493,7 @@ export default function BirthCertificatePage() {
 
             <div className="text-xs text-slate-500 space-y-1 border-t border-slate-200 pt-4">
               <p>We, Registrar of {selectedRecord.placeOfBirth} District, have seen and certified that the right signature is genuine signature of the registrar.</p>
-              <p>Registrar: <span className="font-semibold text-slate-700">{currentRegistrarName}</span></p>
+              <p>Registrar: <span className="font-semibold text-slate-700">{registrarName}</span></p>
               <p>This document is an official sample extract generated from NIMS civil registry data.</p>
             </div>
           </div>

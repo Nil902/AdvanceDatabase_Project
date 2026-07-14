@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\BirthCertificateController;
 use App\Http\Controllers\Api\V1\CitizenController;
 use App\Http\Controllers\Api\V1\FamilyController;
+use App\Http\Controllers\Api\V1\GeoController;
 use App\Http\Controllers\Api\V1\HouseholdController;
 use App\Http\Controllers\Api\V1\IdCardController;
 use App\Http\Controllers\Api\V1\LocationController;
@@ -59,7 +60,14 @@ Route::prefix('v1')->group(function () {
         Route::post('birth-certificates/{id}/print', [BirthCertificateController::class, 'print'])
             ->middleware('ability:birth:print');
 
+        // ── Geography (reference data for address pickers) ────────────────
+        Route::get('geo/provinces', [GeoController::class, 'provinces']);
+        Route::get('geo/districts', [GeoController::class, 'districts']);
+        Route::get('geo/communes', [GeoController::class, 'communes']);
+        Route::get('geo/villages', [GeoController::class, 'villages']);
+
         // ── Citizens ──────────────────────────────────────────────────────
+        Route::get('citizens/search', [CitizenController::class, 'search']);
         Route::put('citizens/{id}', [CitizenController::class, 'update']);
         Route::post('citizens/{id}/photo', [CitizenController::class, 'uploadPhoto']);
         Route::post('citizens/{id}/fingerprint', [CitizenController::class, 'uploadFingerprint']);
@@ -75,6 +83,8 @@ Route::prefix('v1')->group(function () {
         Route::post('id-cards/{id}/dispatch', [IdCardController::class, 'dispatch']);
 
         // ── Households ───────────────────────────────────────────────────
+        Route::get('households', [HouseholdController::class, 'index'])
+            ->middleware('ability:household:read');
         Route::post('households', [HouseholdController::class, 'store']);
         Route::get('households/{id}/members', [HouseholdController::class, 'members'])
             ->middleware('ability:household:read');

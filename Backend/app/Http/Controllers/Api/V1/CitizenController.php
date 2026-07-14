@@ -8,13 +8,37 @@ use App\Http\Requests\Citizen\FingerprintUploadRequest;
 use App\Http\Requests\Citizen\PhotoUploadRequest;
 use App\Http\Requests\Citizen\UpdateCitizenRequest;
 use App\Http\Resources\CitizenResource;
+use App\Models\Citizen;
 use App\Services\CitizenService;
+use Illuminate\Http\Request;
 
 class CitizenController extends Controller
 {
     public function __construct(
         private CitizenService $citizenService
     ) {}
+
+    // GET /citizens/search?q= — type-ahead lookup by name (KH/EN) or national id.
+    public function search(Request $request)
+    {
+        $q = trim((string) $request->get('q', ''));
+
+        if ($q === '') {
+            return CitizenResource::collection([]);
+        }
+
+        $citizens = Citizen::query()
+            ->where(function ($query) use ($q) {
+                $query->where('full_name_en', 'ILIKE', "%{$q}%")
+                    ->orWhere('full_name_kh', 'LIKE', "%{$q}%")
+                    ->orWhere('national_id_number', 'ILIKE', "%{$q}%");
+            })
+            ->orderBy('full_name_en')
+            ->limit((int) $request->get('limit', 10))
+            ->get();
+
+        return CitizenResource::collection($citizens);
+    }
 
     public function update(UpdateCitizenRequest $request, int $id)
     {

@@ -1,11 +1,47 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    BookOpen, Plus, MapPin, Search, ArrowLeft, Upload, CheckCircle2,
-    UserPlus, ArrowLeftRight, Trash2, Inbox,
+    BookOpen, Plus, MapPin, ArrowLeft, Upload, CheckCircle2,
+    UserPlus, ArrowLeftRight, Trash2, Inbox, Loader2, AlertCircle,
 } from 'lucide-react';
+import { api, ApiError, getStoredUser, type Paginated } from '~/lib/api';
+import { CitizenSearch } from '~/components/CitizenSearch';
 
+// ── API shapes ──────────────────────────────────────────────────────────────
+interface ApiCitizen {
+    id: number;
+    national_id_number: string | null;
+    full_name_kh: string | null;
+    full_name_en: string | null;
+}
+interface ApiHousehold {
+    id: number;
+    household_number: string;
+    household_head_id: number | null;
+    head: ApiCitizen | null;
+    location: {
+        village_name?: string | null;
+        commune_name?: string | null;
+        district_name?: string | null;
+        province_name?: string | null;
+    } | null;
+    house_no: string | null;
+    address_detail: string | null;
+    issued_at: string | null;
+    created_date: string | null;
+    members_count: number;
+}
+interface ApiMember {
+    id: number;
+    citizen: ApiCitizen | null;
+    relation_to_head: string;
+    is_current: boolean;
+}
+interface GeoRow { id: number; name_en: string | null; name_kh: string | null }
+
+// ── UI models ────────────────────────────────────────────────────────────────
 interface HouseholdMember {
-    id: string;
+    hhmId: number;
+    citizenId: number;
     nameKh: string;
     nameEn: string;
     nid: string;
@@ -14,92 +50,70 @@ interface HouseholdMember {
 }
 
 interface ResidencyBook {
-    id: string;
+    id: number;
     bookNumber: string;
     village: string;
     commune: string;
     province: string;
-    registeredOn: string; // ISO date
+    registeredOn: string;
     civilAddress: string;
-    members: HouseholdMember[];
+    membersCount: number;          // from API withCount (current members)
+    headNameKh: string;
+    headNameEn: string;
+    members: HouseholdMember[] | null; // lazy-loaded when the book is opened
 }
 
-interface GeoOption {
-    value: string;
-    label: string;
+interface GeoOption { value: string; label: string }
+
+const relationshipOptions = ['spouse', 'child', 'parent', 'sibling', 'other'];
+
+function geoLabel(r: GeoRow): string {
+    return r.name_en || r.name_kh || `#${r.id}`;
 }
 
-// TODO: replace with real data from Laravel API — GET /api/v1/residency-books
-// memberCount is intentionally NOT stored here — it's derived from members.length
-// wherever it's displayed. Storing it separately is how you get a ledger that says
-// "3 Members" after someone's been deleted or relocated out.
-const initialBooks: ResidencyBook[] = [
-    {
-        id: '1',
-        bookNumber: 'HH-1001',
-        village: 'Phum 1',
-        commune: 'Tonle Bassac',
-        province: 'Phnom Penh',
-        registeredOn: '2018-05-20',
-        civilAddress: '#12, Street 308, Phum 1, Tonle Bassac Commune, Chamkar Mon District, Phnom Penh',
-        members: [
-            { id: 'm1', nameKh: 'សុខ ណារិទ្ធ', nameEn: 'Sok Narith', nid: '010 582 914', relationship: 'Husband', isHead: true },
-            { id: 'm2', nameKh: 'ជា សុភា', nameEn: 'Chea Sophea', nid: '010 582 915', relationship: 'Wife', isHead: false },
-            { id: 'm3', nameKh: 'ចាន់ បូរី', nameEn: 'Chan Borey', nid: '010 582 916', relationship: 'Child', isHead: false },
-        ],
-    },
-    {
-        id: '2',
-        bookNumber: 'HH-1002',
-        village: 'Phum 1',
-        commune: 'Tonle Bassac',
-        province: 'Phnom Penh',
-        registeredOn: '2019-02-11',
-        civilAddress: '#14, Street 308, Phum 1, Tonle Bassac Commune, Chamkar Mon District, Phnom Penh',
-        members: [
-            { id: 'm4', nameKh: 'កឹម ពិសិដ្ឋ', nameEn: 'Kim Piseth', nid: '010 582 920', relationship: 'Head', isHead: true },
-            { id: 'm5', nameKh: 'លី សុវណ្ណា', nameEn: 'Ly Sovanna', nid: '010 582 921', relationship: 'Wife', isHead: false },
-        ],
-    },
-    {
-        id: '3',
-        bookNumber: 'HH-1003',
-        village: 'Phum 1',
-        commune: 'Tonle Bassac',
-        province: 'Phnom Penh',
-        registeredOn: '2020-09-03',
-        civilAddress: '#16, Street 308, Phum 1, Tonle Bassac Commune, Chamkar Mon District, Phnom Penh',
-        members: [
-            { id: 'm6', nameKh: 'កឹម ពិសិដ្ឋ', nameEn: 'Kim Piseth', nid: '010 582 930', relationship: 'Head', isHead: true },
-            { id: 'm7', nameKh: 'ហេង សុភាព', nameEn: 'Heng Sopheap', nid: '010 582 931', relationship: 'Sibling', isHead: false },
-            { id: 'm8', nameKh: 'នួន សុជាតា', nameEn: 'Nuon Sochheata', nid: '010 582 932', relationship: 'Child', isHead: false },
-        ],
-    },
-];
+function toBook(h: ApiHousehold): ResidencyBook {
+    const loc = h.location;
+    const address = [h.house_no, loc?.village_name, loc?.commune_name, loc?.district_name, loc?.province_name, h.address_detail]
+        .filter(Boolean)
+        .join(', ');
+    return {
+        id: h.id,
+        bookNumber: h.household_number,
+        village: loc?.village_name ?? '—',
+        commune: loc?.commune_name ?? '—',
+        province: loc?.province_name ?? '—',
+        registeredOn: h.issued_at ?? h.created_date ?? '',
+        civilAddress: address || '—',
+        membersCount: h.members_count ?? 0,
+        headNameKh: h.head?.full_name_kh ?? '',
+        headNameEn: h.head?.full_name_en ?? '',
+        members: null,
+    };
+}
 
-// TODO: replace with real cascading geo data — GET /api/v1/geo/provinces etc.
-const geoData: Record<string, Record<string, Record<string, GeoOption[]>>> = {
-    'Phnom Penh': {
-        'Chamkar Mon': {
-            'Tonle Bassac': [{ value: 'phum-1', label: 'Phum 1' }, { value: 'phum-2', label: 'Phum 2' }],
-            'Boeung Keng Kang': [{ value: 'phum-1', label: 'Phum 1' }],
-        },
-        'Russey Keo': {
-            'Chrang Chamreh I': [{ value: 'phum-1', label: 'Phum 1' }],
-        },
-    },
-};
+function toMember(m: ApiMember): HouseholdMember {
+    return {
+        hhmId: m.id,
+        citizenId: m.citizen?.id ?? 0,
+        nameKh: m.citizen?.full_name_kh ?? '',
+        nameEn: m.citizen?.full_name_en || m.citizen?.full_name_kh || 'Unknown',
+        nid: m.citizen?.national_id_number ?? '—',
+        relationship: m.relation_to_head,
+        isHead: m.relation_to_head === 'head',
+    };
+}
 
-const provinceOptions: GeoOption[] = Object.keys(geoData).map((p) => ({ value: p, label: p }));
-const relationshipOptions = ['Spouse', 'Child', 'Parent', 'Sibling', 'Other'];
-
-// TODO: pull from logged-in registrar session instead of hardcoding
-const currentRegistrar = 'Sok Cheat';
+// Logged-in user stored at login (SystemUserResource).
+interface StoredUser {
+    full_name_en: string | null;
+    full_name_kh: string | null;
+    username: string;
+}
 
 type PanelMode =
     | { type: 'empty' }
     | { type: 'create' }
-    | { type: 'detail'; bookId: string };
+    | { type: 'detail'; bookId: number };
 
 interface CreateForm {
     province: string;
@@ -107,16 +121,17 @@ interface CreateForm {
     commune: string;
     village: string;
     streetAddress: string;
-    headOfHousehold: string;
+    head: ApiCitizen | null;
 }
 
 const emptyCreateForm: CreateForm = {
-    province: '', district: '', commune: '', village: '', streetAddress: '', headOfHousehold: '',
+    province: '', district: '', commune: '', village: '', streetAddress: '', head: null,
 };
 
 function formatDate(iso: string): string {
+    if (!iso) return '—';
     const d = new Date(iso);
-    return d.toLocaleDateString('en-US');
+    return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-US');
 }
 
 function initials(nameEn: string): string {
@@ -125,12 +140,32 @@ function initials(nameEn: string): string {
 }
 
 export default function ResidencyBookPage() {
-    const [books, setBooks] = useState<ResidencyBook[]>(initialBooks);
+    const [books, setBooks] = useState<ResidencyBook[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [panel, setPanel] = useState<PanelMode>({ type: 'empty' });
     const [createForm, setCreateForm] = useState<CreateForm>(emptyCreateForm);
     const [showToast, setShowToast] = useState<string | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
+    const [membersLoading, setMembersLoading] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [registrarName, setRegistrarName] = useState('Registrar');
 
-    const [enrollQuery, setEnrollQuery] = useState('');
+    // Identify the authorizing registrar from the logged-in session. Set after
+    // mount (localStorage is client-only) to avoid an SSR hydration mismatch.
+    useEffect(() => {
+        const u = getStoredUser<StoredUser>();
+        if (u) setRegistrarName(u.full_name_en || u.full_name_kh || u.username || 'Registrar');
+    }, []);
+
+    // geo cascade options
+    const [provinces, setProvinces] = useState<GeoOption[]>([]);
+    const [districts, setDistricts] = useState<GeoOption[]>([]);
+    const [communes, setCommunes] = useState<GeoOption[]>([]);
+    const [villages, setVillages] = useState<GeoOption[]>([]);
+
+    // enroll + transfer form state
+    const [enrollCitizen, setEnrollCitizen] = useState<ApiCitizen | null>(null);
     const [enrollRelationship, setEnrollRelationship] = useState(relationshipOptions[0]);
     const [transferMemberId, setTransferMemberId] = useState('');
     const [transferTargetId, setTransferTargetId] = useState('');
@@ -141,16 +176,58 @@ export default function ResidencyBookPage() {
         setTimeout(() => setShowToast(null), 2500);
     }
 
-    // ---------- create-book form ----------
-    const districtOptions: GeoOption[] = createForm.province
-        ? Object.keys(geoData[createForm.province] ?? {}).map((d) => ({ value: d, label: d }))
-        : [];
-    const communeOptions: GeoOption[] = createForm.province && createForm.district
-        ? Object.keys(geoData[createForm.province]?.[createForm.district] ?? {}).map((c) => ({ value: c, label: c }))
-        : [];
-    const villageOptions: GeoOption[] = createForm.province && createForm.district && createForm.commune
-        ? geoData[createForm.province]?.[createForm.district]?.[createForm.commune] ?? []
-        : [];
+    // ── load ledger ────────────────────────────────────────────────────────────
+    async function loadBooks(): Promise<ResidencyBook[]> {
+        const res = await api.get<Paginated<ApiHousehold>>('/households', { per_page: 100 });
+        const mapped = res.data.map(toBook);
+        setBooks(mapped);
+        return mapped;
+    }
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                await loadBooks();
+            } catch (err) {
+                if (!cancelled) setError(err instanceof ApiError ? err.message : 'Failed to load residency books.');
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, []);
+
+    // provinces once
+    useEffect(() => {
+        api.get<GeoRow[]>('/geo/provinces')
+            .then((rows) => setProvinces(rows.map((r) => ({ value: String(r.id), label: geoLabel(r) }))))
+            .catch(() => setProvinces([]));
+    }, []);
+
+    // cascade: district ← province, commune ← district, village ← commune
+    useEffect(() => {
+        if (!createForm.province) { setDistricts([]); return; }
+        api.get<GeoRow[]>('/geo/districts', { province_id: createForm.province })
+            .then((rows) => setDistricts(rows.map((r) => ({ value: String(r.id), label: geoLabel(r) }))))
+            .catch(() => setDistricts([]));
+    }, [createForm.province]);
+
+    useEffect(() => {
+        if (!createForm.district) { setCommunes([]); return; }
+        api.get<GeoRow[]>('/geo/communes', { district_id: createForm.district })
+            .then((rows) => setCommunes(rows.map((r) => ({ value: String(r.id), label: geoLabel(r) }))))
+            .catch(() => setCommunes([]));
+    }, [createForm.district]);
+
+    useEffect(() => {
+        if (!createForm.commune) { setVillages([]); return; }
+        api.get<GeoRow[]>('/geo/villages', { commune_id: createForm.commune })
+            .then((rows) => setVillages(rows.map((r) => ({ value: String(r.id), label: geoLabel(r) }))))
+            .catch(() => setVillages([]));
+    }, [createForm.commune]);
 
     function updateCreateField<K extends keyof CreateForm>(key: K, value: CreateForm[K]) {
         setCreateForm((prev) => {
@@ -162,90 +239,141 @@ export default function ResidencyBookPage() {
         });
     }
 
-    function handleIssueBook() {
-        // TODO: real validation + POST /api/v1/residency-books. This just no-ops
-        // on missing fields instead of surfacing an error — fine for a demo, not for real use.
-        if (!createForm.province || !createForm.district || !createForm.commune || !createForm.village || !createForm.headOfHousehold) {
-            return;
-        }
-        const villageLabel = villageOptions.find((v) => v.value === createForm.village)?.label ?? createForm.village;
-        const newBook: ResidencyBook = {
-            id: crypto.randomUUID(),
-            bookNumber: `HH-${1000 + books.length + 1}`,
-            village: villageLabel,
-            commune: createForm.commune,
-            province: createForm.province,
-            registeredOn: new Date().toISOString(),
-            civilAddress: `${createForm.streetAddress}, ${villageLabel}, ${createForm.commune}, ${createForm.province}`,
-            members: [
-                { id: crypto.randomUUID(), nameKh: '', nameEn: createForm.headOfHousehold, nid: 'PENDING', relationship: 'Head', isHead: true },
-            ],
-        };
-        setBooks((prev) => [newBook, ...prev]);
-        setCreateForm(emptyCreateForm);
-        setPanel({ type: 'detail', bookId: newBook.id });
-        fireToast('Residency Book Issued');
+    // ── open a book: lazy-load its members ──────────────────────────────────────
+    async function openBook(bookId: number) {
+        setPanel({ type: 'detail', bookId });
+        setActionError(null);
+        const book = books.find((b) => b.id === bookId);
+        if (!book || book.members !== null) return;
+        await loadMembers(bookId);
     }
 
-    // ---------- detail panel actions ----------
+    async function loadMembers(bookId: number) {
+        setMembersLoading(true);
+        try {
+            const res = await api.get<{ data: ApiMember[] }>(`/households/${bookId}/members`);
+            const members = res.data.filter((m) => m.is_current).map(toMember);
+            setBooks((prev) => prev.map((b) => (b.id === bookId ? { ...b, members, membersCount: members.length } : b)));
+        } catch (err) {
+            setActionError(err instanceof ApiError ? err.message : 'Failed to load household members.');
+        } finally {
+            setMembersLoading(false);
+        }
+    }
+
     const selectedBook = panel.type === 'detail' ? books.find((b) => b.id === panel.bookId) ?? null : null;
 
-    function handleEnroll() {
-        if (!selectedBook || !enrollQuery.trim()) return;
-        // TODO: this must resolve enrollQuery to an actual citizen record via the
-        // registry (GET /api/v1/citizens?q=) and pull their real NID — accepting
-        // freeform text and stamping "PENDING" lets you enroll someone who was
-        // never verified.
-        const newMember: HouseholdMember = {
-            id: crypto.randomUUID(),
-            nameKh: '',
-            nameEn: enrollQuery.trim(),
-            nid: 'PENDING',
-            relationship: enrollRelationship,
-            isHead: false,
-        };
-        setBooks((prev) => prev.map((b) => (b.id === selectedBook.id ? { ...b, members: [...b.members, newMember] } : b)));
-        setEnrollQuery('');
-        fireToast('Resident Enrolled');
+    // ── create book ─────────────────────────────────────────────────────────────
+    async function handleIssueBook() {
+        setActionError(null);
+        if (!createForm.village || !createForm.head) {
+            setActionError('Select a village and a head of household.');
+            return;
+        }
+        setBusy(true);
+        try {
+            const created = await api.post<{ data: ApiHousehold }>('/households', {
+                household_number: `HH-${Date.now().toString().slice(-6)}`,
+                village_id: Number(createForm.village),
+                household_head_id: createForm.head.id,
+                house_no: createForm.streetAddress || null,
+                address_detail: createForm.streetAddress || null,
+                issued_at: new Date().toISOString().slice(0, 10),
+            });
+            const list = await loadBooks();
+            setCreateForm(emptyCreateForm);
+            const newId = created.data.id;
+            setPanel({ type: 'detail', bookId: newId });
+            if (list.find((b) => b.id === newId)) await loadMembers(newId);
+            fireToast('Residency Book Issued');
+        } catch (err) {
+            setActionError(err instanceof ApiError ? err.message : 'Failed to issue residency book.');
+        } finally {
+            setBusy(false);
+        }
     }
 
-    function handleMakeHead(memberId: string) {
+    // ── member actions ──────────────────────────────────────────────────────────
+    async function handleEnroll() {
+        if (!selectedBook || !enrollCitizen) return;
+        setActionError(null);
+        setBusy(true);
+        try {
+            await api.post(`/households/${selectedBook.id}/members`, {
+                citizen_id: enrollCitizen.id,
+                relation_to_head: enrollRelationship,
+            });
+            await loadMembers(selectedBook.id);
+            setEnrollCitizen(null);
+            fireToast('Resident Enrolled');
+        } catch (err) {
+            setActionError(err instanceof ApiError ? err.message : 'Failed to enroll resident.');
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    async function handleMakeHead(member: HouseholdMember) {
         if (!selectedBook) return;
-        setBooks((prev) => prev.map((b) => (
-            b.id === selectedBook.id
-                ? { ...b, members: b.members.map((m) => ({ ...m, isHead: m.id === memberId })) }
-                : b
-        )));
+        setActionError(null);
+        setBusy(true);
+        try {
+            await api.patch(`/households/${selectedBook.id}/head`, { new_head_citizen_id: member.citizenId });
+            await loadMembers(selectedBook.id);
+            // head name shown in the ledger changed — refresh the list too
+            await loadBooks();
+            setPanel({ type: 'detail', bookId: selectedBook.id });
+            fireToast('Head of Household Updated');
+        } catch (err) {
+            setActionError(err instanceof ApiError ? err.message : 'Failed to change head.');
+        } finally {
+            setBusy(false);
+        }
     }
 
-    function handleDeleteMember(member: HouseholdMember) {
+    async function handleDeleteMember(member: HouseholdMember) {
         if (!selectedBook) return;
         if (!window.confirm(`Remove ${member.nameEn} from this residency book?`)) return;
-        setBooks((prev) => prev.map((b) => (
-            b.id === selectedBook.id ? { ...b, members: b.members.filter((m) => m.id !== member.id) } : b
-        )));
+        setActionError(null);
+        setBusy(true);
+        try {
+            await api.del(`/households/${selectedBook.id}/members/${member.citizenId}`);
+            await loadMembers(selectedBook.id);
+            fireToast('Member Removed');
+        } catch (err) {
+            setActionError(err instanceof ApiError ? err.message : 'Failed to remove member.');
+        } finally {
+            setBusy(false);
+        }
     }
 
-    function handleRelocate() {
+    async function handleRelocate() {
         if (!selectedBook || !transferMemberId || !transferTargetId.trim()) return;
         const target = books.find((b) => b.bookNumber === transferTargetId.trim());
         if (!target) {
-            // TODO: real relocation is a server-side transaction with an audit trail
-            // and effective date — not a client array splice. This is a stub.
-            window.alert('No residency book found with that ID.');
+            setActionError('No residency book found with that ID.');
             return;
         }
-        const member = selectedBook.members.find((m) => m.id === transferMemberId);
-        if (!member) return;
-        setBooks((prev) => prev.map((b) => {
-            if (b.id === selectedBook.id) return { ...b, members: b.members.filter((m) => m.id !== member.id) };
-            if (b.id === target.id) return { ...b, members: [...b.members, { ...member, isHead: false }] };
-            return b;
-        }));
-        setTransferMemberId('');
-        setTransferTargetId('');
-        setTransferReason('');
-        fireToast('Member Relocated');
+        setActionError(null);
+        setBusy(true);
+        try {
+            await api.post('/households/transfer', {
+                citizen_id: Number(transferMemberId),
+                from_household_id: selectedBook.id,
+                to_household_id: target.id,
+                reason: transferReason || null,
+            });
+            await loadMembers(selectedBook.id);
+            setBooks((prev) => prev.map((b) => (b.id === target.id ? { ...b, members: null } : b)));
+            setTransferMemberId('');
+            setTransferTargetId('');
+            setTransferReason('');
+            fireToast('Member Relocated');
+        } catch (err) {
+            setActionError(err instanceof ApiError ? err.message : 'Failed to relocate member.');
+        } finally {
+            setBusy(false);
+        }
     }
 
     return (
@@ -265,7 +393,7 @@ export default function ResidencyBookPage() {
                         </div>
                         <button
                             type="button"
-                            onClick={() => { setCreateForm(emptyCreateForm); setPanel({ type: 'create' }); }}
+                            onClick={() => { setCreateForm(emptyCreateForm); setActionError(null); setPanel({ type: 'create' }); }}
                             className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-amber-600"
                         >
                             <Plus className="h-3 w-3" />
@@ -273,39 +401,52 @@ export default function ResidencyBookPage() {
                         </button>
                     </div>
 
-                    <div className="space-y-4">
-                        {books.map((book) => {
-                            const isSelected = panel.type === 'detail' && panel.bookId === book.id;
-                            const head = book.members.find((m) => m.isHead);
-                            return (
-                                <button
-                                    key={book.id}
-                                    type="button"
-                                    onClick={() => setPanel({ type: 'detail', bookId: book.id })}
-                                    className={`flex w-full items-start justify-between rounded-lg p-3 text-left transition-colors ${
-                                        isSelected ? 'border-l-4 border-amber-400 bg-amber-50' : 'border border-slate-100 hover:bg-slate-50'
-                                    }`}
-                                >
-                                    <div className="flex items-start gap-3">
-                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-[10px] font-bold text-amber-700">
-                                            HH
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-bold text-slate-900">Book: {book.bookNumber}</p>
-                                            <p className="text-xs font-semibold text-slate-700">Head: {head?.nameKh || head?.nameEn || '—'}</p>
-                                            <div className="mt-1 flex items-center gap-1 text-[11px] text-slate-400">
-                                                <MapPin className="h-3 w-3" />
-                                                {book.village}, {book.commune}, {book.province}
+                    {loading ? (
+                        <div className="flex items-center justify-center gap-2 py-10 text-xs text-slate-400">
+                            <Loader2 className="h-4 w-4 animate-spin" /> Loading residency books…
+                        </div>
+                    ) : error ? (
+                        <div className="flex items-start gap-2 py-6 text-xs text-red-700">
+                            <AlertCircle className="h-4 w-4 shrink-0 stroke-[2.5]" /> {error}
+                        </div>
+                    ) : books.length === 0 ? (
+                        <p className="py-10 text-center text-xs text-slate-400">No residency books registered yet.</p>
+                    ) : (
+                        <div className="space-y-4">
+                            {books.map((book) => {
+                                const isSelected = panel.type === 'detail' && panel.bookId === book.id;
+                                const count = book.members ? book.members.length : book.membersCount;
+                                const headLabel = book.headNameKh || book.headNameEn || '—';
+                                return (
+                                    <button
+                                        key={book.id}
+                                        type="button"
+                                        onClick={() => openBook(book.id)}
+                                        className={`flex w-full items-start justify-between rounded-lg p-3 text-left transition-colors ${
+                                            isSelected ? 'border-l-4 border-amber-400 bg-amber-50' : 'border border-slate-100 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-[10px] font-bold text-amber-700">
+                                                HH
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-slate-900">Book: {book.bookNumber}</p>
+                                                <p className="text-xs font-semibold text-slate-700">Head: {headLabel}</p>
+                                                <div className="mt-1 flex items-center gap-1 text-[11px] text-slate-400">
+                                                    <MapPin className="h-3 w-3" />
+                                                    {book.village}, {book.commune}, {book.province}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-500">
-                    {book.members.length} Members
+                                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-500">
+                    {count} Members
                   </span>
-                                </button>
-                            );
-                        })}
-                    </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
 
                 {/* RIGHT PANEL */}
@@ -330,17 +471,23 @@ export default function ResidencyBookPage() {
                                 Back
                             </button>
                         </div>
-                        <p className="text-[11px] text-slate-500 mb-5">Authorized Official Registrar: {currentRegistrar}</p>
+                        <p className="text-[11px] text-slate-500 mb-5">Authorized Official Registrar: {registrarName}</p>
+
+                        {actionError && (
+                            <div className="mb-4 flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700">
+                                <AlertCircle className="h-3.5 w-3.5 shrink-0 stroke-[2.5]" /> {actionError}
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-2 gap-4 mb-4">
-                            <SelectField label="Province (ខេត្ត/ក្រុង)" value={createForm.province} onChange={(v) => updateCreateField('province', v)} options={provinceOptions} placeholder="Select province" />
-                            <SelectField label="District (ស្រុក/ខណ្ឌ)" value={createForm.district} onChange={(v) => updateCreateField('district', v)} options={districtOptions} placeholder="Select district" disabled={!createForm.province} />
-                            <SelectField label="Commune (ឃុំ/សង្កាត់)" value={createForm.commune} onChange={(v) => updateCreateField('commune', v)} options={communeOptions} placeholder="Select commune" disabled={!createForm.district} />
-                            <SelectField label="Village (ភូមិ)" value={createForm.village} onChange={(v) => updateCreateField('village', v)} options={villageOptions} placeholder="Select village" disabled={!createForm.commune} />
+                            <SelectField label="Province (ខេត្ត/ក្រុង)" value={createForm.province} onChange={(v) => updateCreateField('province', v)} options={provinces} placeholder="Select province" />
+                            <SelectField label="District (ស្រុក/ខណ្ឌ)" value={createForm.district} onChange={(v) => updateCreateField('district', v)} options={districts} placeholder="Select district" disabled={!createForm.province} />
+                            <SelectField label="Commune (ឃុំ/សង្កាត់)" value={createForm.commune} onChange={(v) => updateCreateField('commune', v)} options={communes} placeholder="Select commune" disabled={!createForm.district} />
+                            <SelectField label="Village (ភូមិ)" value={createForm.village} onChange={(v) => updateCreateField('village', v)} options={villages} placeholder="Select village" disabled={!createForm.commune} />
                         </div>
 
                         <div className="mb-4">
-                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Street address/Detail notes *</label>
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Street address/Detail notes</label>
                             <input
                                 type="text"
                                 value={createForm.streetAddress}
@@ -352,24 +499,21 @@ export default function ResidencyBookPage() {
 
                         <div className="mb-6">
                             <label className="mb-1.5 block text-xs font-semibold text-slate-700">Designate Head of household *</label>
-                            <div className="relative">
-                                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                                <input
-                                    type="text"
-                                    value={createForm.headOfHousehold}
-                                    onChange={(e) => updateCreateField('headOfHousehold', e.target.value)}
-                                    placeholder="Search Registry name (KH/ENG) or ID Number"
-                                    className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                                />
-                            </div>
+                            <CitizenSearch
+                                placeholder="Search citizen by name (KH/ENG) or NID"
+                                selected={createForm.head}
+                                onSelect={(c) => updateCreateField('head', c)}
+                                ringClass="focus:ring-amber-400"
+                            />
                         </div>
 
                         <button
                             type="button"
                             onClick={handleIssueBook}
-                            className="flex w-full items-center justify-center gap-2 rounded-lg bg-amber-500 py-2.5 text-xs font-bold text-white hover:bg-amber-600"
+                            disabled={busy}
+                            className="flex w-full items-center justify-center gap-2 rounded-lg bg-amber-500 py-2.5 text-xs font-bold text-white hover:bg-amber-600 disabled:opacity-60"
                         >
-                            <Upload className="h-3.5 w-3.5" />
+                            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
                             Issue Residency Book &amp; Stamp Seal
                         </button>
                     </div>
@@ -397,50 +541,66 @@ export default function ResidencyBookPage() {
                             </div>
                         </div>
 
+                        {actionError && (
+                            <div className="mb-3 flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700">
+                                <AlertCircle className="h-3.5 w-3.5 shrink-0 stroke-[2.5]" /> {actionError}
+                            </div>
+                        )}
+
                         <p className="mb-2 text-[10px] font-bold tracking-wide text-slate-500">REGISTERED HOUSEHOLD MEMBERS</p>
                         <div className="mb-5 divide-y divide-slate-100 rounded-lg border border-slate-100">
-                            {selectedBook.members.map((member) => (
-                                <div key={member.id} className="flex items-center justify-between gap-3 p-3">
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[11px] font-bold text-slate-700">
-                                            {initials(member.nameEn)}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="truncate text-sm font-bold text-slate-900">
-                                                {member.nameKh ? `${member.nameKh} (${member.nameEn})` : member.nameEn}
-                                            </p>
-                                            <p className="text-[11px] text-slate-500">
-                                                NID: {member.nid} &nbsp; Relationship: <span className="font-semibold text-amber-600">{member.relationship}</span>
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex shrink-0 items-center gap-2">
-                                        {member.isHead ? (
-                                            <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700">
-                        Head of Household
-                      </span>
-                                        ) : (
-                                            <>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleMakeHead(member.id)}
-                                                    className="rounded-lg bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600 hover:bg-slate-200"
-                                                >
-                                                    Make Head
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleDeleteMember(member)}
-                                                    aria-label={`Remove ${member.nameEn}`}
-                                                    className="rounded-lg bg-red-50 p-1.5 text-red-600 hover:bg-red-100"
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </button>
-                                            </>
-                                        )}
-                                    </div>
+                            {membersLoading ? (
+                                <div className="flex items-center justify-center gap-2 p-4 text-xs text-slate-400">
+                                    <Loader2 className="h-4 w-4 animate-spin" /> Loading members…
                                 </div>
-                            ))}
+                            ) : !selectedBook.members || selectedBook.members.length === 0 ? (
+                                <p className="p-4 text-center text-xs text-slate-400">No current members.</p>
+                            ) : (
+                                selectedBook.members.map((member) => (
+                                    <div key={member.hhmId} className="flex items-center justify-between gap-3 p-3">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[11px] font-bold text-slate-700">
+                                                {initials(member.nameEn)}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="truncate text-sm font-bold text-slate-900">
+                                                    {member.nameKh ? `${member.nameKh} (${member.nameEn})` : member.nameEn}
+                                                </p>
+                                                <p className="text-[11px] text-slate-500">
+                                                    NID: {member.nid} &nbsp; Relationship: <span className="font-semibold text-amber-600">{member.relationship}</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            {member.isHead ? (
+                                                <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700">
+                          Head of Household
+                        </span>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleMakeHead(member)}
+                                                        disabled={busy}
+                                                        className="rounded-lg bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600 hover:bg-slate-200 disabled:opacity-60"
+                                                    >
+                                                        Make Head
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeleteMember(member)}
+                                                        disabled={busy}
+                                                        aria-label={`Remove ${member.nameEn}`}
+                                                        className="rounded-lg bg-red-50 p-1.5 text-red-600 hover:bg-red-100 disabled:opacity-60"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
                         </div>
 
                         <div className="mb-5 rounded-lg border border-slate-100 p-3">
@@ -448,14 +608,12 @@ export default function ResidencyBookPage() {
                                 <UserPlus className="h-3.5 w-3.5 text-slate-700" />
                                 <p className="text-xs font-bold text-slate-900">Enroll Resident into Book</p>
                             </div>
-                            <div className="relative mb-2">
-                                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                                <input
-                                    type="text"
-                                    value={enrollQuery}
-                                    onChange={(e) => setEnrollQuery(e.target.value)}
-                                    placeholder="Search Registry name (KH/ENG) or ID Number"
-                                    className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                            <div className="mb-2">
+                                <CitizenSearch
+                                    placeholder="Search citizen by name (KH/ENG) or NID"
+                                    selected={enrollCitizen}
+                                    onSelect={setEnrollCitizen}
+                                    ringClass="focus:ring-orange-400"
                                 />
                             </div>
                             <div className="flex gap-2">
@@ -469,7 +627,8 @@ export default function ResidencyBookPage() {
                                 <button
                                     type="button"
                                     onClick={handleEnroll}
-                                    className="rounded-lg bg-orange-600 px-4 py-2 text-xs font-bold text-white hover:bg-orange-700"
+                                    disabled={busy || !enrollCitizen}
+                                    className="rounded-lg bg-orange-600 px-4 py-2 text-xs font-bold text-white hover:bg-orange-700 disabled:opacity-60"
                                 >
                                     Add Link
                                 </button>
@@ -488,15 +647,15 @@ export default function ResidencyBookPage() {
                                     className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400"
                                 >
                                     <option value="">-- Choose Member --</option>
-                                    {selectedBook.members.map((m) => (
-                                        <option key={m.id} value={m.id}>{m.nameEn}</option>
+                                    {(selectedBook.members ?? []).map((m) => (
+                                        <option key={m.hhmId} value={m.citizenId}>{m.nameEn}</option>
                                     ))}
                                 </select>
                                 <input
                                     type="text"
                                     value={transferTargetId}
                                     onChange={(e) => setTransferTargetId(e.target.value)}
-                                    placeholder="Residency ID"
+                                    placeholder="Target Residency ID (e.g. HH-1002)"
                                     className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400"
                                 />
                             </div>
@@ -511,7 +670,8 @@ export default function ResidencyBookPage() {
                                 <button
                                     type="button"
                                     onClick={handleRelocate}
-                                    className="rounded-lg bg-slate-800 px-4 py-2 text-xs font-bold text-white hover:bg-slate-900"
+                                    disabled={busy}
+                                    className="rounded-lg bg-slate-800 px-4 py-2 text-xs font-bold text-white hover:bg-slate-900 disabled:opacity-60"
                                 >
                                     Relocate
                                 </button>

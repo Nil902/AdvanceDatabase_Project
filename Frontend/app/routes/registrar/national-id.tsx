@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    CreditCard, ShieldCheck, Eye, Inbox, Plus, Search, ArrowLeft, UserRound,
+    CreditCard, ShieldCheck, Eye, Inbox, Plus, ArrowLeft, UserRound, Loader2, AlertCircle,
 } from 'lucide-react';
+import { api, ApiError, getStoredUser, type Paginated } from '~/lib/api';
+import { CitizenSearch, type CitizenOption } from '~/components/CitizenSearch';
 
 type PipelineStage = 'Pending Admin' | 'Smart Print Active' | 'Dispatched Province' | 'Delivered Station';
 type NidStatus = 'Active' | 'Suspended' | 'Disabled';
 
 interface NidCard {
     id: string;
-    cardNumber: string;    // NID-CARD-xxxx
-    requestNumber: string; // ID-REQ-xxxx
+    cardNumber: string;    // card_serial_number
+    requestNumber: string;
     nid: string;
     nameKh: string;
     nameEn: string;
@@ -17,40 +19,101 @@ interface NidCard {
     sex: 'M' | 'F';
     address: string;
     expiresOn: string; // ISO
-    delivered: boolean;
     status: NidStatus;
     pipelineStage: PipelineStage;
+    // NOTE: `delivered` is intentionally NOT stored here. It's derived from
+    // pipelineStage via isDelivered() so the two can never disagree.
 }
 
 const pipelineStages: PipelineStage[] = ['Pending Admin', 'Smart Print Active', 'Dispatched Province', 'Delivered Station'];
 
-// TODO: replace with GET /api/v1/nid-cards. `delivered` and `pipelineStage` are
-// two separate booleans/enums tracking the same underlying fact — a card that's
-// "Delivered Station" but delivered:false (or vice versa) is a state you can hit
-// if these aren't kept in sync server-side. Consider making delivered derived
-// from pipelineStage === 'Delivered Station' instead of storing both.
-const initialCards: NidCard[] = [
-    { id: '1', cardNumber: 'NID-CARD-2044', requestNumber: 'ID-REQ-5510', nid: '120034506', nameKh: 'សុខ ណារិទ្ធ', nameEn: 'Sok Narith', dob: '1993-11-06', sex: 'M', address: 'Phum 1, Tonle Bassac, Chamkar Mon, Phnom Penh', expiresOn: '2034-11-06', delivered: true, status: 'Active', pipelineStage: 'Smart Print Active' },
-    { id: '2', cardNumber: 'NID-CARD-2045', requestNumber: 'ID-REQ-5511', nid: '120034507', nameKh: 'ជា សុភា', nameEn: 'Chea Sophea', dob: '1995-03-14', sex: 'F', address: 'Phum 1, Tonle Bassac, Chamkar Mon, Phnom Penh', expiresOn: '2034-03-14', delivered: false, status: 'Active', pipelineStage: 'Dispatched Province' },
-    { id: '3', cardNumber: 'NID-CARD-2046', requestNumber: 'ID-REQ-5512', nid: '120034508', nameKh: 'ចាន់ បូរី', nameEn: 'Chan Borey', dob: '2001-07-22', sex: 'M', address: 'Phum 1, Tonle Bassac, Chamkar Mon, Phnom Penh', expiresOn: '2034-07-22', delivered: true, status: 'Active', pipelineStage: 'Delivered Station' },
-    { id: '4', cardNumber: 'NID-CARD-2047', requestNumber: 'ID-REQ-5513', nid: '120034509', nameKh: 'លី សុវណ្ណា', nameEn: 'Ly Sovanna', dob: '1988-01-30', sex: 'F', address: 'Phum 2, Tonle Bassac, Chamkar Mon, Phnom Penh', expiresOn: '2034-01-30', delivered: true, status: 'Suspended', pipelineStage: 'Delivered Station' },
-    { id: '5', cardNumber: 'NID-CARD-2048', requestNumber: 'ID-REQ-5514', nid: '120034510', nameKh: 'ហេង សុភាព', nameEn: 'Heng Sopheap', dob: '1999-09-09', sex: 'M', address: 'Phum 1, Chrang Chamreh I, Russey Keo, Phnom Penh', expiresOn: '2034-09-09', delivered: true, status: 'Active', pipelineStage: 'Delivered Station' },
-    { id: '6', cardNumber: 'NID-CARD-2049', requestNumber: 'ID-REQ-5515', nid: '120034511', nameKh: 'នួន សុជាតា', nameEn: 'Nuon Sochheata', dob: '1996-12-18', sex: 'F', address: 'Phum 1, Chrang Chamreh I, Russey Keo, Phnom Penh', expiresOn: '2034-12-18', delivered: true, status: 'Active', pipelineStage: 'Delivered Station' },
-    { id: '7', cardNumber: 'NID-CARD-2050', requestNumber: 'ID-REQ-5516', nid: '120034512', nameKh: 'កឹម ពិសិដ្ឋ', nameEn: 'Kim Piseth', dob: '1990-05-02', sex: 'M', address: 'Phum 1, Tonle Bassac, Chamkar Mon, Phnom Penh', expiresOn: '2034-05-02', delivered: true, status: 'Active', pipelineStage: 'Delivered Station' },
-    { id: '8', cardNumber: 'NID-CARD-2051', requestNumber: 'ID-REQ-5517', nid: '120034513', nameKh: 'សុខ ចាន់ថា', nameEn: 'Sok Chanthy', dob: '1994-08-25', sex: 'F', address: 'Phum 1, Boeung Keng Kang, Chamkar Mon, Phnom Penh', expiresOn: '2034-08-25', delivered: true, status: 'Disabled', pipelineStage: 'Delivered Station' },
-];
+// A card is "delivered" iff it has reached the final pipeline stage — single
+// source of truth, no separate boolean to keep in sync.
+function isDelivered(card: NidCard): boolean {
+    return card.pipelineStage === 'Delivered Station';
+}
 
-// TODO: pull from session
-const currentRegistrar = 'Sok Cheat';
+// ── API shapes (IdCardController@search → IdCardResource) ───────────────────
+// There is no GET /nid-cards; the list lives at GET /id-cards/search. The API
+// only tracks `status` — the printing pipeline is a client-side concept, so we
+// seed an initial stage from the status and manage stage changes locally.
+interface ApiIdCard {
+    id: number;
+    card_serial_number: string;
+    card_type: string;
+    status: string;
+    issue_date: string | null;
+    expiry_date: string | null;
+    citizen?: {
+        id: number;
+        national_id_number: string | null;
+        full_name_kh: string | null;
+        full_name_en: string | null;
+        gender: string | null;
+        date_of_birth: string | null;
+        birth_place?: { province_name?: string | null } | null;
+    } | null;
+}
+
+// Backend status vocabulary → the three UI states.
+const API_TO_UI_STATUS: Record<string, NidStatus> = {
+    active: 'Active', issued: 'Active',
+    suspended: 'Suspended',
+    revoked: 'Disabled', expired: 'Disabled', disabled: 'Disabled',
+};
+// UI states → the values UpdateStatusRequest accepts (active|suspended|revoked).
+const UI_TO_API_STATUS: Record<NidStatus, 'active' | 'suspended' | 'revoked'> = {
+    Active: 'active', Suspended: 'suspended', Disabled: 'revoked',
+};
+
+function mapUiStatus(apiStatus: string): NidStatus {
+    return API_TO_UI_STATUS[apiStatus.toLowerCase()] ?? 'Disabled';
+}
+
+function toNidCard(c: ApiIdCard): NidCard {
+    const cz = c.citizen ?? null;
+    const status = mapUiStatus(c.status);
+    return {
+        id: String(c.id),
+        cardNumber: c.card_serial_number,
+        requestNumber: `REQ-${c.id}`,
+        nid: cz?.national_id_number ?? '—',
+        nameKh: cz?.full_name_kh ?? '',
+        nameEn: cz?.full_name_en || cz?.full_name_kh || 'Unknown',
+        dob: cz?.date_of_birth ?? '',
+        sex: /^f/i.test(cz?.gender ?? '') ? 'F' : 'M',
+        address: cz?.birth_place?.province_name ?? '',
+        expiresOn: c.expiry_date ?? '',
+        status,
+        // Live/issued cards are treated as already delivered; everything else
+        // starts at the front of the pipeline.
+        pipelineStage: status === 'Active' ? 'Delivered Station' : 'Pending Admin',
+    };
+}
+
+// Logged-in user stored at login (SystemUserResource).
+interface StoredUser {
+    full_name_en: string | null;
+    full_name_kh: string | null;
+    username: string;
+}
 
 type Tab = 'inspect' | 'issues';
 type Panel = { type: 'empty' } | { type: 'create' } | { type: 'detail'; cardId: string };
 
+// StoreIdCardRequest accepts these card_type values.
+type CardType = 'national_id' | 'temp_id' | 'foreigner_id';
+const cardTypeOptions: { value: CardType; label: string }[] = [
+    { value: 'national_id', label: 'National ID' },
+    { value: 'temp_id', label: 'Temporary ID' },
+    { value: 'foreigner_id', label: 'Foreigner ID' },
+];
+
 interface CreateForm {
-    applicant: string;
-    nid: string;
+    citizen: CitizenOption | null;
+    cardType: CardType;
 }
-const emptyCreateForm: CreateForm = { applicant: '', nid: '' };
+const emptyCreateForm: CreateForm = { citizen: null, cardType: 'national_id' };
 
 function formatDate(iso: string): string {
     return new Date(iso).toLocaleDateString('en-US');
@@ -67,11 +130,47 @@ function statusPillClass(status: NidStatus): string {
 }
 
 export default function NationalIdCardPage() {
-    const [cards, setCards] = useState<NidCard[]>(initialCards);
+    const [cards, setCards] = useState<NidCard[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
     const [panel, setPanel] = useState<Panel>({ type: 'empty' });
     const [tab, setTab] = useState<Tab>('inspect');
     const [flipped, setFlipped] = useState(false);
     const [createForm, setCreateForm] = useState<CreateForm>(emptyCreateForm);
+    const [busy, setBusy] = useState(false);
+    const [registrarName, setRegistrarName] = useState('Registrar');
+
+    // Identify the authorizing registrar from the logged-in session. Set after
+    // mount (localStorage is client-only) to avoid an SSR hydration mismatch.
+    useEffect(() => {
+        const u = getStoredUser<StoredUser>();
+        if (u) setRegistrarName(u.full_name_en || u.full_name_kh || u.username || 'Registrar');
+    }, []);
+
+    // GET /id-cards/search — the ID-card list endpoint (no dedicated /nid-cards).
+    async function loadCards(): Promise<NidCard[]> {
+        const res = await api.get<Paginated<ApiIdCard>>('/id-cards/search', { per_page: 100 });
+        const mapped = res.data.map(toNidCard);
+        setCards(mapped);
+        return mapped;
+    }
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                await loadCards();
+            } catch (err) {
+                if (!cancelled) setError(err instanceof ApiError ? err.message : 'Failed to load ID cards.');
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, []);
 
     const selected = panel.type === 'detail' ? cards.find((c) => c.id === panel.cardId) ?? null : null;
 
@@ -80,39 +179,58 @@ export default function NationalIdCardPage() {
         setPanel({ type: 'detail', cardId: id });
     }
 
+    // Pipeline stage is a client-side concept (the API has no such column), so
+    // this stays local. `delivered` is derived, so nothing else to sync.
     function setStage(cardId: string, stage: PipelineStage) {
-        setCards((prev) => prev.map((c) => (
-            c.id === cardId ? { ...c, pipelineStage: stage, delivered: stage === 'Delivered Station' } : c
-        )));
+        setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, pipelineStage: stage } : c)));
     }
 
-    function setStatus(cardId: string, status: NidStatus) {
+    // PATCH /id-cards/{id}/status — optimistic update, revert on failure.
+    async function setStatus(cardId: string, status: NidStatus) {
+        setActionError(null);
+        const previous = cards.find((c) => c.id === cardId)?.status;
         setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, status } : c)));
+        try {
+            await api.patch(`/id-cards/${cardId}/status`, { status: UI_TO_API_STATUS[status] });
+        } catch (err) {
+            setCards((prev) => prev.map((c) => (c.id === cardId && previous ? { ...c, status: previous } : c)));
+            setActionError(err instanceof ApiError ? err.message : 'Failed to update card status.');
+        }
     }
 
-    function handleIssueCard() {
-        // TODO: real flow is POST /api/v1/nid-cards after resolving `applicant` to a
-        // verified citizen record. This just fabricates one client-side.
-        if (!createForm.applicant.trim()) return;
-        const n = cards.length + 1;
-        const newCard: NidCard = {
-            id: crypto.randomUUID(),
-            cardNumber: `NID-CARD-${2043 + n}`,
-            requestNumber: `ID-REQ-${5509 + n}`,
-            nid: createForm.nid.trim() || 'PENDING',
-            nameKh: '',
-            nameEn: createForm.applicant.trim(),
-            dob: '',
-            sex: 'M',
-            address: '',
-            expiresOn: '',
-            delivered: false,
-            status: 'Active',
-            pipelineStage: 'Pending Admin',
-        };
-        setCards((prev) => [newCard, ...prev]);
-        setCreateForm(emptyCreateForm);
-        selectCard(newCard.id);
+    // POST /id-cards — issue a smart card for a resolved citizen. Serial is
+    // auto-generated; issue/expiry default to a 10-year validity.
+    async function handleIssueCard() {
+        setActionError(null);
+        if (!createForm.citizen) {
+            setActionError('Select a verified citizen first.');
+            return;
+        }
+        const issueDate = new Date();
+        const expiryDate = new Date(issueDate);
+        expiryDate.setFullYear(expiryDate.getFullYear() + 10);
+        const serial = `NID-${Date.now().toString().slice(-8)}`;
+
+        setBusy(true);
+        try {
+            const created = await api.post<{ data: ApiIdCard }>('/id-cards', {
+                citizen_id: createForm.citizen.id,
+                card_serial_number: serial,
+                card_type: createForm.cardType,
+                status: 'active',
+                issue_date: issueDate.toISOString().slice(0, 10),
+                expiry_date: expiryDate.toISOString().slice(0, 10),
+            });
+            const list = await loadCards();
+            const newId = String(created.data.id);
+            setCreateForm(emptyCreateForm);
+            if (list.find((c) => c.id === newId)) selectCard(newId);
+            else setPanel({ type: 'empty' });
+        } catch (err) {
+            setActionError(err instanceof ApiError ? err.message : 'Failed to issue ID card.');
+        } finally {
+            setBusy(false);
+        }
     }
 
     return (
@@ -154,6 +272,16 @@ export default function NationalIdCardPage() {
 
                     {tab === 'issues' ? (
                         <div className="p-6 text-xs text-slate-400">Issues/Replace workflow — not built yet.</div>
+                    ) : loading ? (
+                        <div className="flex items-center justify-center gap-2 p-6 text-xs text-slate-400">
+                            <Loader2 className="h-4 w-4 animate-spin" /> Loading smart NID cards…
+                        </div>
+                    ) : error ? (
+                        <div className="flex items-start gap-2 p-6 text-xs text-red-700">
+                            <AlertCircle className="h-4 w-4 shrink-0 stroke-[2.5]" /> {error}
+                        </div>
+                    ) : cards.length === 0 ? (
+                        <div className="p-6 text-center text-xs text-slate-400">No ID cards on file yet.</div>
                     ) : (
                         <div className="max-h-[560px] divide-y divide-slate-100 overflow-y-auto">
                             {cards.map((card) => {
@@ -177,9 +305,9 @@ export default function NationalIdCardPage() {
                                             </div>
                                         </div>
                                         <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${
-                                            card.delivered ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'
+                                            isDelivered(card) ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'
                                         }`}>
-                      {card.delivered ? 'Delivered' : 'Not Delivered'}
+                      {isDelivered(card) ? 'Delivered' : 'Not Delivered'}
                     </span>
                                     </button>
                                 );
@@ -221,39 +349,43 @@ export default function NationalIdCardPage() {
                                 Back
                             </button>
                         </div>
-                        <p className="text-[11px] text-slate-500 mb-5">Authorized Official Registrar: {currentRegistrar}</p>
+                        <p className="text-[11px] text-slate-500 mb-5">Authorized Official Registrar: {registrarName}</p>
+
+                        {actionError && (
+                            <div className="mb-4 flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700">
+                                <AlertCircle className="h-3.5 w-3.5 shrink-0 stroke-[2.5]" /> {actionError}
+                            </div>
+                        )}
 
                         <div className="mb-4">
-                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Applicant *</label>
-                            <div className="relative">
-                                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                                <input
-                                    type="text"
-                                    value={createForm.applicant}
-                                    onChange={(e) => setCreateForm((f) => ({ ...f, applicant: e.target.value }))}
-                                    placeholder="Search Registry name (KH/ENG) or ID Number"
-                                    className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                                />
-                            </div>
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Applicant (verified citizen) *</label>
+                            <CitizenSearch
+                                placeholder="Search Registry name (KH/ENG) or ID Number"
+                                selected={createForm.citizen}
+                                onSelect={(c) => setCreateForm((f) => ({ ...f, citizen: c }))}
+                                ringClass="focus:ring-purple-400"
+                            />
                         </div>
 
                         <div className="mb-6">
-                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">NID Number (leave blank to auto-assign)</label>
-                            <input
-                                type="text"
-                                value={createForm.nid}
-                                onChange={(e) => setCreateForm((f) => ({ ...f, nid: e.target.value }))}
-                                placeholder="e.g. 120034514"
-                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                            />
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Card Type *</label>
+                            <select
+                                value={createForm.cardType}
+                                onChange={(e) => setCreateForm((f) => ({ ...f, cardType: e.target.value as CardType }))}
+                                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                            >
+                                {cardTypeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </select>
+                            <p className="mt-1.5 text-[11px] text-slate-400">Serial number is auto-generated; validity defaults to 10 years.</p>
                         </div>
 
                         <button
                             type="button"
                             onClick={handleIssueCard}
-                            className="flex w-full items-center justify-center gap-2 rounded-lg bg-purple-600 py-2.5 text-xs font-bold text-white hover:bg-purple-700"
+                            disabled={busy || !createForm.citizen}
+                            className="flex w-full items-center justify-center gap-2 rounded-lg bg-purple-600 py-2.5 text-xs font-bold text-white hover:bg-purple-700 disabled:opacity-60"
                         >
-                            <ShieldCheck className="h-3.5 w-3.5" />
+                            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
                             Issue New NID Card
                         </button>
                     </div>
@@ -342,6 +474,11 @@ export default function NationalIdCardPage() {
                         </div>
 
                         <p className="mb-2 text-[10px] font-bold tracking-wide text-slate-500">MANAGE NID STATUS</p>
+                        {actionError && (
+                            <div className="mb-2 flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700">
+                                <AlertCircle className="h-3.5 w-3.5 shrink-0 stroke-[2.5]" /> {actionError}
+                            </div>
+                        )}
                         <div className="flex gap-2">
                             <button
                                 type="button"

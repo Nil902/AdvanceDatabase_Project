@@ -12,13 +12,33 @@ use App\Http\Resources\HouseholdMemberResource;
 use App\Http\Resources\HouseholdResource;
 use App\Models\Household;
 use App\Services\HouseholdService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\QueryBuilder;
 
 class HouseholdController extends Controller
 {
     public function __construct(
         private HouseholdService $householdService
     ) {}
+
+    // GET /households — paginated residency-book ledger with head + live member count.
+    public function index(Request $request)
+    {
+        $households = QueryBuilder::for(Household::class)
+            ->allowedFilters(
+                AllowedFilter::exact('village_id'),
+                AllowedFilter::exact('is_active'),
+                'household_number',
+            )
+            ->allowedSorts('household_number', 'created_date')
+            ->with(['headCitizen', 'village.commune.district.province'])
+            ->withCount(['members' => fn ($q) => $q->whereNull('left_date')])
+            ->paginate($request->get('per_page', 20));
+
+        return HouseholdResource::collection($households);
+    }
 
     public function store(StoreHouseholdRequest $request)
     {
