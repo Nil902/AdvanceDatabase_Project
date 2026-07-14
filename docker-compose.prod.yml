@@ -26,6 +26,7 @@ services:
       APP_KEY: base64://vUsQ71OLB9FWwG4JZBgW6sC5cxOYTwrbq7B8mqJv0=
       APP_DEBUG: "false"
       APP_URL: http://134.209.105.170
+      FRONTEND_URL: http://134.209.105.170:3000
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432
