@@ -19,10 +19,11 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const data = await api.post<{ token: string; user: unknown }>('/auth/login', { username, password });
+      const data = await api.post<{ token: string; user: { role?: { role_code?: string } } }>('/auth/login', { username, password });
       localStorage.setItem('auth_token', data.token);
       localStorage.setItem('auth_user', JSON.stringify(data.user));
-      navigate('/dashboard');
+      const role = data.user?.role?.role_code;
+      navigate(role === 'admin' ? '/dashboard' : '/registrar');
     } catch (err: any) {
       setError(err.message || 'An error occurred during login.');
     } finally {
