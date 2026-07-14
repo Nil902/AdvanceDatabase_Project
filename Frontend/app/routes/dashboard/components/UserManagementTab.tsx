@@ -52,7 +52,7 @@ export function useUsers() {
     if (!newUserName.trim() || !newUserEmail.trim()) return;
 
     const newAccount: UserAccount = {
-      id: crypto.randomUUID(),
+      id: Math.random().toString(36).slice(2) + Date.now().toString(36),
       name: newUserName.trim(),
       email: newUserEmail.trim(),
       role: newUserRole,
