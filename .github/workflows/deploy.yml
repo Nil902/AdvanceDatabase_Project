@@ -1,23 +1,170 @@
-name: Deploy to Droplet
+name: CI/CD — Build & Deploy
 
 on:
   push:
-    branches:
-      - main   # change if your deploy branch is different
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  deploy:
+  # ===========================================================================
+  # 1. TEST FRONTEND
+  # ===========================================================================
+  test-frontend:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+  # ===========================================================================
+  # 2. TEST BACKEND
+  # ===========================================================================
+  test-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: civil_registry_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      mongo:
+        image: mongo:7
+        ports: ["27017:27017"]
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_pgsql, pgsql, mongodb, redis, gd, zip, bcmath, intl, opcache
+          coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: Backend/vendor
+          key: composer-${{ hashFiles('Backend/composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: civil_registry_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+          MONGO_HOST: 127.0.0.1
+          MONGO_PORT: 27017
+          MONGO_DATABASE: civil_registry_test_docs
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 6379
+          CACHE_STORE: redis
+          QUEUE_CONNECTION: sync
+
+      - name: Run migrations
+        run: php artisan migrate --force
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: civil_registry_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+
+      - name: Check code style (Pint)
+        run: vendor/bin/pint --test
+        continue-on-error: true
+
+      - name: Run test suite
+        run: php artisan test
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: civil_registry_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+          MONGO_HOST: 127.0.0.1
+          MONGO_PORT: 27017
+          MONGO_DATABASE: civil_registry_test_docs
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 6379
+          CACHE_STORE: redis
+          QUEUE_CONNECTION: sync
+
+  # ===========================================================================
+  # 3. DEPLOY — SSH into the server, pull, build, and restart all services.
+  #    Only runs on main after both test jobs pass.
+  #    Requires repo secrets: DROPLET_HOST, DROPLET_USER, DROPLET_SSH_KEY
+  # ===========================================================================
+  deploy:
+    needs: [test-frontend, test-backend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+
     steps:
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.DROPLET_HOST }}
           username: ${{ secrets.DROPLET_USER }}
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script: |
+            set -e
             cd ~/apps/AdvanceDatabase_Project
             git pull origin main
-            docker compose down
-            docker compose up -d --build
+            docker compose -f docker-compose.prod.yml down
+            docker compose -f docker-compose.prod.yml up -d --build
             docker image prune -f

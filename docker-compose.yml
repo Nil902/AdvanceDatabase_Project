@@ -1,0 +1,108 @@
+# Local development — runs Frontend + Backend + all infrastructure services.
+# Usage: docker compose up -d --build
+
+services:
+  # ---------------------------------------------------------------------------
+  # Frontend — React Router (SSR)
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./Frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+    depends_on:
+      - app
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Backend — Laravel (PHP-FPM + Nginx + Queue Worker)
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: ./Backend
+      target: app
+    ports:
+      - "8000:80"
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: civil_registry
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      MONGO_HOST: mongo
+      MONGO_PORT: 27017
+      MONGO_DATABASE: civil_registry_docs
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      RUN_MIGRATIONS: "true"
+    depends_on:
+      - postgres
+      - mongo
+      - redis
+    volumes:
+      - backend-storage:/var/www/html/storage/app
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Infrastructure
+  # ---------------------------------------------------------------------------
+  postgres:
+    build:
+      context: ./Backend/docker/postgres
+    environment:
+      POSTGRES_DB: civil_registry
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    command: postgres -c config_file=/etc/postgresql/pgbadger.conf
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - pg-logs:/var/log/postgresql
+
+  pgbadger:
+    build:
+      context: ./Backend/docker/pgbadger
+    depends_on:
+      - postgres
+    volumes:
+      - pg-logs:/var/log/postgresql:ro
+      - pgbadger-reports:/var/www/pgbadger
+      - pgbadger-data:/var/lib/pgbadger
+
+  pgbadger-web:
+    image: nginx:alpine
+    depends_on:
+      - pgbadger
+    volumes:
+      - pgbadger-reports:/usr/share/nginx/html:ro
+    ports:
+      - "8081:80"
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodata:/data/db
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+
+volumes:
+  backend-storage:
+  pgdata:
+  pg-logs:
+  pgbadger-reports:
+  pgbadger-data:
+  mongodata:
+  redisdata:
