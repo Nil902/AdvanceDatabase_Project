@@ -73,8 +73,7 @@ COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # --- Permissions: Laravel needs to write to storage/ and bootstrap/cache/ --
-RUN addgroup -g 1000 www && adduser -G www -u 1000 -D www \
-    && chown -R www:www /var/www/html/storage /var/www/html/bootstrap/cache \
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
 EXPOSE 80

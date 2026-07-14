@@ -26,6 +26,11 @@ services:
     ports:
       - "8000:80"
     environment:
+      APP_NAME: CivilRegistry
+      APP_ENV: local
+      APP_KEY: base64://vUsQ71OLB9FWwG4JZBgW6sC5cxOYTwrbq7B8mqJv0=
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8000
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432
@@ -38,6 +43,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       CACHE_STORE: redis
+      SESSION_DRIVER: redis
       QUEUE_CONNECTION: redis
       RUN_MIGRATIONS: "true"
     depends_on:
