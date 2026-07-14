@@ -8,6 +8,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { DEFAULT_AVATAR } from '../constants';
+import { api, clearSession } from '../../../lib/api';
 import type { DashboardTab } from '../types';
 
 const NAV_ITEMS: { key: DashboardTab; label: string; icon: React.ElementType }[] = [
@@ -62,9 +63,8 @@ export function DashboardLayout({
           </nav>
         </div>
         <button onClick={async () => {
-  try { await fetch('/api/v1/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}`, Accept: 'application/json' } }); } catch {}
-  localStorage.removeItem('auth_token');
-  localStorage.removeItem('auth_user');
+  try { await api.post('/auth/logout'); } catch {}
+  clearSession();
   window.location.href = '/login';
 }} className="flex items-center gap-3 rounded-lg px-4 py-2 text-xs font-bold tracking-wide text-red-600 transition hover:bg-red-50"><LogOut className="h-4 w-4 shrink-0" />Logout</button>
       </aside>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { Mail, ArrowLeft, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { api } from '../lib/api';
 
 export default function RequestOtpPage() {
   const [email, setEmail] = useState<string>('');
@@ -18,21 +19,7 @@ export default function RequestOtpPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/v1/forgot-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to send verification code.');
-      }
-
+      await api.post('/forgot-password', { email });
       setSuccess('Verification code sent! Redirecting...');
       setTimeout(() => {
         navigate('/verify-identity', { state: { email } });

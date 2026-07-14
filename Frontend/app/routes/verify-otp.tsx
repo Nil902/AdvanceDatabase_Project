@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { FormEvent, KeyboardEvent, ChangeEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { ArrowLeft, ShieldCheck, Clock, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { api } from '../lib/api';
 
 export default function VerifyOtpPage() {
   const [otp, setOtp] = useState<string[]>(new Array(6).fill(''));
@@ -98,31 +99,11 @@ export default function VerifyOtpPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/v1/verify-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-          email: rawEmail,
-          otp: otpCode,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Invalid or expired OTP code entered.');
-      }
-
+      await api.post('/verify-otp', { email: rawEmail, otp: otpCode });
       setSuccess('Security code verified! Advancing to password rewrite form...');
-
-      // Redirect user to password override template while carrying verification parameters
       setTimeout(() => {
         navigate('/reset-password', { state: { email: rawEmail, otp: otpCode } });
       }, 1500);
-
     } catch (err: any) {
       setError(err.message || 'Verification system communication mismatch.');
     } finally {
@@ -142,25 +123,10 @@ export default function VerifyOtpPage() {
     setSuccess(null);
 
     try {
-      const response = await fetch('/api/v1/forgot-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({ email: rawEmail }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Unable to reissue verification code.');
-      }
-
+      await api.post('/forgot-password', { email: rawEmail });
       setSuccess('A brand-new verification token was issued to your email.');
-      setOtp(new Array(6).fill('')); // Clear out old inputs
-      setTimeLeft(268); // Reset timer window back to standard duration
-
+      setOtp(new Array(6).fill(''));
+      setTimeLeft(268);
     } catch (err: any) {
       setError(err.message || 'Failed to dispatch resend request.');
     } finally {

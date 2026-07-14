@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { User, Eye, EyeOff, LogIn, Loader2, AlertCircle } from 'lucide-react';
+import { api } from '../lib/api';
 
 export default function LoginPage() {
   const [username, setUsername] = useState<string>('');
@@ -18,21 +19,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/v1/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed.');
-      }
-
+      const data = await api.post<{ token: string; user: unknown }>('/auth/login', { username, password });
       localStorage.setItem('auth_token', data.token);
       localStorage.setItem('auth_user', JSON.stringify(data.user));
       navigate('/dashboard');

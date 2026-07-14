@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Eye, EyeOff, LogIn, CheckCircle2, XCircle, Loader2, AlertCircle } from 'lucide-react';
+import { api } from '../lib/api';
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState<string>('');
@@ -48,33 +49,16 @@ export default function ResetPasswordPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/v1/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          otp,
-          password,
-          password_confirmation: confirmPassword
-        }),
+      await api.post('/reset-password', {
+        email,
+        otp,
+        password,
+        password_confirmation: confirmPassword
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to commit password override transaction.");
-      }
-
       setSuccess("Your administrative password has been rewritten successfully! Routing back to Login...");
-      
-      // Delay to let the user visually register successful completion
       setTimeout(() => {
         navigate('/login');
       }, 2000);
-
     } catch (err: any) {
       setError(err.message || "An unhandled server-side error occurred while updating your password.");
     } finally {
