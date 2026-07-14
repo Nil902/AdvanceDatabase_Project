@@ -49,11 +49,16 @@ RUN apk add --no-cache \
 # --- PHP extensions --------------------------------------------------------
 # pdo_pgsql   -> PostgreSQL (Server 4, the primary DB)
 # redis       -> cache/session/queue driver (Server 2)
-# mongodb     -> MongoDB (Server 5, secondary DB) via PECL, since it's not a core ext
+# mongodb     -> MongoDB (Server 5, secondary DB)
 RUN docker-php-ext-configure gd --with-jpeg --with-freetype \
     && docker-php-ext-install -j$(nproc) pdo_pgsql pgsql gd zip bcmath intl opcache \
-    && pecl install redis mongodb \
-    && docker-php-ext-enable redis mongodb
+    && pecl install redis \
+    && docker-php-ext-enable redis
+
+# MongoDB extension — install from Alpine package to avoid 10+ min PECL compile
+RUN apk add --no-cache php83-pecl-mongodb \
+    && cp /usr/lib/php83/modules/mongodb.so "$(php -r 'echo ini_get("extension_dir");')/" \
+    && docker-php-ext-enable mongodb
 
 WORKDIR /var/www/html
 
