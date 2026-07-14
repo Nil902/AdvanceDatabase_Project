@@ -87,8 +87,9 @@ class AuthController extends Controller
             3 => [
                 'birth:create', 'birth:read', 'birth:print',
                 'id_card:create', 'id_card:read',
-                'household:create', 'household:read',
-                'family:create', 'family:read',
+                'household:create', 'household:read', 'household:update',
+                'family:create', 'family:read', 'family:update',
+                'reports:read',
             ],
             default => [
                 'birth:read', 'id_card:read', 'household:read', 'family:read', 'reports:read',
