@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import type React from 'react';
 import {
   Users,
@@ -10,6 +11,7 @@ import {
   ShieldCheck,
   MapPin,
 } from 'lucide-react';
+import { api } from '../../../lib/api';
 import { moduleMeta, toneDot } from '../constants';
 import type { BreakdownEntry, ModuleKey } from '../types';
 
@@ -26,13 +28,6 @@ interface OverviewSummary {
   family: { households: number; dependents: number };
 }
 
-const summary: OverviewSummary = {
-  birth: { total: 1284, registered: 1276, missingCert: 8 },
-  nid: { total: 1152, active: 1103, suspended: 31, disabled: 18, undelivered: 24 },
-  residency: { books: 418, residents: 1284 },
-  family: { households: 418, dependents: 502 },
-};
-
 interface ActivityItem {
   id: string;
   module: ModuleKey;
@@ -41,31 +36,12 @@ interface ActivityItem {
   time: string;
 }
 
-// TODO: GET /api/v1/overview/activity?limit=6
-const recentActivity: ActivityItem[] = [
-  { id: 'a1', module: 'nid', action: 'Issued smart NID card NID-CARD-2051', actor: 'Sok Cheat', time: '12m ago' },
-  { id: 'a2', module: 'birth', action: 'Registered newborn birth certificate BC-2026-0091', actor: 'Sok Cheat', time: '38m ago' },
-  { id: 'a3', module: 'residency', action: 'Issued residency book HH-1004', actor: 'Meas Sophia', time: '1h ago' },
-  { id: 'a4', module: 'family', action: 'Relocated member to household HH-1002', actor: 'Sok Cheat', time: '2h ago' },
-  { id: 'a5', module: 'nid', action: 'Suspended NID status for card NID-CARD-2047', actor: 'Meas Sophia', time: '3h ago' },
-  { id: 'a6', module: 'birth', action: 'Exported birth certificate PDF for Chan Borey', actor: 'Sok Cheat', time: '4h ago' },
-];
-
 interface AttentionItem {
   id: string;
   module: ModuleKey;
   label: string;
   count: number;
 }
-
-// Derived from the same summary — these are the KPI's "pending actions" broken out.
-const attention: AttentionItem[] = [
-  { id: 't1', module: 'nid', label: 'Cards printed but not delivered', count: summary.nid.undelivered },
-  { id: 't2', module: 'birth', label: 'Citizens with no birth certificate', count: summary.birth.missingCert },
-  { id: 't3', module: 'nid', label: 'Suspended NID cards under review', count: summary.nid.suspended },
-];
-
-const pendingActions = summary.nid.undelivered + summary.birth.missingCert;
 
 function KpiCard({
   icon: Icon,
@@ -154,6 +130,33 @@ function ModuleCard({
 // The overview body, rendered inside the dashboard shell as a tab.
 export function OverviewTab({ onNavigate }: { onNavigate: (module: ModuleKey) => void }) {
   const go = (module: ModuleKey) => () => onNavigate(module);
+
+  const [summary, setSummary] = useState<OverviewSummary>({
+    birth: { total: 0, registered: 0, missingCert: 0 },
+    nid: { total: 0, active: 0, suspended: 0, disabled: 0, undelivered: 0 },
+    residency: { books: 0, residents: 0 },
+    family: { households: 0, dependents: 0 },
+  });
+  const [recentActivity] = useState<ActivityItem[]>([]);
+
+  useEffect(() => {
+    api.get<any>('/reports/summary').then((data) => {
+      setSummary({
+        birth: { total: data.birth_certificates ?? 0, registered: data.birth_certificates ?? 0, missingCert: 0 },
+        nid: { total: data.id_cards ?? 0, active: data.id_cards ?? 0, suspended: 0, disabled: 0, undelivered: 0 },
+        residency: { books: data.households ?? 0, residents: data.citizens ?? 0 },
+        family: { households: data.households ?? 0, dependents: data.citizens ?? 0 },
+      });
+    }).catch(() => {});
+  }, []);
+
+  const attention: AttentionItem[] = [
+    { id: 't1', module: 'nid', label: 'Cards printed but not delivered', count: summary.nid.undelivered },
+    { id: 't2', module: 'birth', label: 'Citizens with no birth certificate', count: summary.birth.missingCert },
+    { id: 't3', module: 'nid', label: 'Suspended NID cards under review', count: summary.nid.suspended },
+  ];
+
+  const pendingActions = summary.nid.undelivered + summary.birth.missingCert;
 
   return (
     <div className="space-y-8">

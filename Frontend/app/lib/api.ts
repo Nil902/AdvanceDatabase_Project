@@ -6,7 +6,10 @@
 // as `Authorization: Bearer <token>`; a 401 clears the session and bounces to
 // the login screen.
 
-const BASE = '/api/v1';
+const API_HOST = typeof window !== 'undefined' && window.location.port === '3000'
+  ? `${window.location.protocol}//${window.location.hostname}`
+  : '';
+const BASE = `${API_HOST}/api/v1`;
 
 const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'auth_user';

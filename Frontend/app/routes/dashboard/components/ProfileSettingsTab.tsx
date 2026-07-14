@@ -7,21 +7,21 @@ import { DEFAULT_AVATAR } from '../constants';
 // layer lets us roll back to the last saved values when the user cancels.
 // Lifted to the page so the sidebar can read name/email; the hook lives beside
 // the tab it drives.
-export function useProfileForm() {
+export function useProfileForm(initialName = '', initialEmail = '') {
   const [isEditing, setIsEditing] = useState(false);
 
-  const [name, setName] = useState('System Admin');
-  const [email, setEmail] = useState('admin@corporate.com');
-  const [phone, setPhone] = useState('+855 23 999 888');
-  const [zone, setZone] = useState('North Region Central HQ');
-  const [password, setPassword] = useState('mastersecurepass123');
+  const [name, setName] = useState(initialName);
+  const [email, setEmail] = useState(initialEmail);
+  const [phone, setPhone] = useState('');
+  const [zone, setZone] = useState('');
+  const [password, setPassword] = useState('');
 
   const [backup, setBackup] = useState({
-    name: 'System Admin',
-    email: 'admin@corporate.com',
-    phone: '+855 23 999 888',
-    zone: 'North Region Central HQ',
-    password: 'mastersecurepass123',
+    name: initialName,
+    email: initialEmail,
+    phone: '',
+    zone: '',
+    password: '',
   });
 
   const startEditing = () => {
@@ -40,7 +40,6 @@ export function useProfileForm() {
 
   const saveProfile = (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: PUT /api/v1/profile
     setIsEditing(false);
   };
 
