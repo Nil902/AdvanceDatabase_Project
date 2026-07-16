@@ -102,6 +102,7 @@ Route::prefix('v1')->group(function () {
         Route::get('families/search', [FamilyController::class, 'search'])
             ->middleware('ability:family:read');
         Route::put('families/{id}', [FamilyController::class, 'update']);
+        Route::delete('families/{id}', [FamilyController::class, 'destroy']);
         Route::post('families/{id}/members', [FamilyController::class, 'addMember']);
         Route::get('families/{id}/tree', [FamilyController::class, 'tree'])
             ->middleware('ability:family:read');

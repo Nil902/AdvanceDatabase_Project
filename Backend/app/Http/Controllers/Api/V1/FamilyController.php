@@ -27,11 +27,24 @@ class FamilyController extends Controller
 
     public function search(Request $request)
     {
+        $q = trim((string) $request->input('query', ''));
+
         $families = QueryBuilder::for(FamilyUnit::class)
             ->allowedFilters(
                 AllowedFilter::exact('head_citizen_id'),
                 'family_code',
             )
+            ->when($q !== '', function ($builder) use ($q) {
+                // Free-text search by family code or head citizen (name KH/EN or NID).
+                $builder->where(function ($sub) use ($q) {
+                    $sub->where('family_code', 'ILIKE', "%{$q}%")
+                        ->orWhereHas('headCitizen', function ($c) use ($q) {
+                            $c->where('full_name_en', 'ILIKE', "%{$q}%")
+                                ->orWhere('full_name_kh', 'LIKE', "%{$q}%")
+                                ->orWhere('national_id_number', 'ILIKE', "%{$q}%");
+                        });
+                });
+            })
             ->with(['headCitizen'])
             ->paginate($request->input('per_page', 20));
 
@@ -63,5 +76,12 @@ class FamilyController extends Controller
         $tree = $this->familyService->getTree($id);
 
         return response()->json($tree);
+    }
+
+    public function destroy(int $id)
+    {
+        $this->familyService->delete($id);
+
+        return response()->json(['message' => 'Family unit deleted'], 200);
     }
 }

@@ -51,6 +51,20 @@ class FamilyService
         Cache::tags(['families'])->forget("family:{$familyId}:tree");
     }
 
+    public function delete(int $familyId): void
+    {
+        $family = FamilyUnit::findOrFail($familyId);
+
+        DB::transaction(function () use ($family) {
+            // Members are stored as relationships anchored on the head; remove
+            // those, then the unit itself.
+            CitizenRelationship::where('citizen_id_a', $family->head_citizen_id)->delete();
+            $family->delete();
+        });
+
+        Cache::tags(['families'])->flush();
+    }
+
     public function getTree(int $familyId): array
     {
         return Cache::tags(['families'])->remember(

@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             CivilStatusLookupSeeder::class,
             AdminUserSeeder::class,
             GeographySeeder::class,
+            RelationshipTypeSeeder::class,
         ]);
 
         User::factory()->create([
