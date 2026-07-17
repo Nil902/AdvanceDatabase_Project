@@ -127,7 +127,6 @@ class GenerateSampleData extends Command
                 'issue_date' => $issue->toDateString(),
                 'expiry_date' => $issue->copy()->addYears(10)->toDateString(),
                 'created_at' => now(),
-                'updated_at' => now(),
             ];
         });
 
