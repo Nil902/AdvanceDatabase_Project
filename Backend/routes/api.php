@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\GeoController;
 use App\Http\Controllers\Api\V1\HouseholdController;
 use App\Http\Controllers\Api\V1\IdCardController;
 use App\Http\Controllers\Api\V1\LocationController;
+use App\Http\Controllers\Api\V1\PerformanceController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\VitalEventController;
 use App\Http\Controllers\Auth\PasswordResetController;
@@ -123,5 +124,12 @@ Route::prefix('v1')->group(function () {
 
         // ── Location Cache Management ────────────────────────────────────
         Route::delete('locations/cache', [LocationController::class, 'clearCache']);
+
+        // ── Admin: Infrastructure Performance (admin role only) ──────────
+        Route::prefix('admin/performance')->middleware('ability:admin:read')->group(function () {
+            Route::get('database', [PerformanceController::class, 'database']);
+            Route::get('redis', [PerformanceController::class, 'redis']);
+            Route::get('pgbadger', [PerformanceController::class, 'pgbadger']);
+        });
     });
 });

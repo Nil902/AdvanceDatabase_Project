@@ -50,6 +50,7 @@ services:
       MAIL_FROM_ADDRESS: sina015772825@gmail.com
       MAIL_FROM_NAME: CivilRegistry
       RUN_MIGRATIONS: "true"
+      PGBADGER_URL: http://134.209.105.170:8081
     depends_on:
       - postgres
       - mongo
@@ -72,6 +73,30 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - pg-logs:/var/log/postgresql
+
+  # pgBadger — parses the PostgreSQL logs (shared pg-logs volume) into HTML
+  # performance reports on a cron schedule (hourly incremental, nightly full).
+  pgbadger:
+    build:
+      context: ./Backend/docker/pgbadger
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    volumes:
+      - pg-logs:/var/log/postgresql:ro
+      - pgbadger-reports:/var/www/pgbadger
+      - pgbadger-data:/var/lib/pgbadger
+
+  # Serves the generated pgBadger reports; linked from the admin dashboard.
+  pgbadger-web:
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on:
+      - pgbadger
+    ports:
+      - "8081:80"
+    volumes:
+      - pgbadger-reports:/usr/share/nginx/html:ro
 
   mongo:
     image: mongo:7
@@ -96,3 +121,5 @@ volumes:
   pg-logs:
   mongodata:
   redisdata:
+  pgbadger-reports:
+  pgbadger-data:

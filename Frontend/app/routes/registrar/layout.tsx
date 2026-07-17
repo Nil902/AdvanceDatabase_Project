@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router';
+import { NavLink, Outlet } from 'react-router';
 import {
   Search,
   FileBarChart2,
@@ -10,7 +10,8 @@ import {
   LogOut,
   KeyRound,
 } from 'lucide-react';
-import { api, clearSession, getStoredUser, getToken } from '~/lib/api';
+import { api, clearSession, getStoredUser } from '~/lib/api';
+import { AuthGuard } from '~/components/AuthGuard';
 
 const NAV_ITEMS = [
   { to: '/registrar', label: 'Demographic Report', icon: FileBarChart2, color: 'text-blue-400' },
@@ -29,18 +30,13 @@ interface StoredUser {
 }
 
 export default function RegistrarLayout() {
-  const navigate = useNavigate();
   const [user, setUser] = useState<StoredUser | null>(null);
 
-  // Route guard: no token → bounce to login. Otherwise hydrate the sidebar
-  // identity box from the stored user.
+  // AuthGuard (below) handles the token + role redirects; here we just hydrate
+  // the sidebar identity box from the stored user.
   useEffect(() => {
-    if (!getToken()) {
-      navigate('/login', { replace: true });
-      return;
-    }
     setUser(getStoredUser<StoredUser>());
-  }, [navigate]);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -61,6 +57,7 @@ export default function RegistrarLayout() {
   };
 
   return (
+    <AuthGuard area="registrar">
     <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
 
       {/* SIDEBAR */}
@@ -136,5 +133,6 @@ export default function RegistrarLayout() {
         </main>
       </div>
     </div>
+    </AuthGuard>
   );
 }

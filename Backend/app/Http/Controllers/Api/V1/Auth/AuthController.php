@@ -75,23 +75,23 @@ class AuthController extends Controller
 
     private function abilitiesForRole(int $roleId): array
     {
+        // Full set of registrar-portal abilities. Every route the portal calls
+        // is covered here so both supervisors (2) and registrars (3) can operate
+        // the portal without hitting a 403 (e.g. household:update for member
+        // removal / address changes).
+        $portalAbilities = [
+            'birth:create', 'birth:read', 'birth:update', 'birth:delete', 'birth:verify', 'birth:print',
+            'id_card:create', 'id_card:read', 'id_card:update', 'id_card:dispatch',
+            'household:create', 'household:read', 'household:update',
+            'family:create', 'family:read', 'family:update',
+            'reports:read',
+        ];
+
         return match ($roleId) {
-            1 => ['*'],
-            2 => [
-                'birth:create', 'birth:read', 'birth:update', 'birth:delete', 'birth:verify', 'birth:print',
-                'id_card:create', 'id_card:read', 'id_card:update', 'id_card:dispatch',
-                'household:create', 'household:read', 'household:update',
-                'family:create', 'family:read', 'family:update',
-                'reports:read',
-            ],
-            3 => [
-                'birth:create', 'birth:read', 'birth:print',
-                'id_card:create', 'id_card:read',
-                'household:create', 'household:read', 'household:update',
-                'family:create', 'family:read', 'family:update',
-                'reports:read',
-            ],
-            default => [
+            1 => ['*'],                 // admin — full system access
+            2 => $portalAbilities,      // supervisor
+            3 => $portalAbilities,      // registrar
+            default => [                // viewer — read-only
                 'birth:read', 'id_card:read', 'household:read', 'family:read', 'reports:read',
             ],
         };

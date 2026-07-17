@@ -7,6 +7,7 @@ import type { DashboardTab, ModuleKey } from './types';
 import { DashboardLayout } from './components/DashboardLayout';
 import { OverviewTab } from './components/OverviewTab';
 import { UserManagementTab, useUsers } from './components/UserManagementTab';
+import { PerformanceTab } from './components/PerformanceTab';
 import { ProfileSettingsTab, useProfileForm } from './components/ProfileSettingsTab';
 import { AuditLogsTab } from './components/AuditLogsTab';
 import { SecuritySettingsTab, useSecuritySettings } from './components/SecuritySettingsTab';
@@ -23,7 +24,7 @@ export default function DashboardPage() {
   const goToModule = (module: ModuleKey) => navigate(`/registrar/${registrarPath[module]}`);
 
   return (
-    <AuthGuard>
+    <AuthGuard area="admin">
       <DashboardLayout
         currentTab={currentTab}
         onTabChange={setCurrentTab}
@@ -32,6 +33,7 @@ export default function DashboardPage() {
       >
         {currentTab === 'overview' && <OverviewTab onNavigate={goToModule} />}
         {currentTab === 'users' && <UserManagementTab users={users} />}
+        {currentTab === 'performance' && <PerformanceTab />}
         {currentTab === 'profile' && <ProfileSettingsTab profile={profile} />}
         {currentTab === 'audit' && <AuditLogsTab />}
         {currentTab === 'security' && <SecuritySettingsTab security={security} />}

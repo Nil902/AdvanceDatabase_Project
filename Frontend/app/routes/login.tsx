@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { User, Eye, EyeOff, LogIn, Loader2, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
+import { homeForRole } from '../components/AuthGuard';
 
 export default function LoginPage() {
   const [username, setUsername] = useState<string>('');

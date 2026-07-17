@@ -140,12 +140,13 @@ export function OverviewTab({ onNavigate }: { onNavigate: (module: ModuleKey) =>
   const [recentActivity] = useState<ActivityItem[]>([]);
 
   useEffect(() => {
+    // Keys match ReportController@summary (total_citizens, total_birth_certificates, …).
     api.get<any>('/reports/summary').then((data) => {
       setSummary({
-        birth: { total: data.birth_certificates ?? 0, registered: data.birth_certificates ?? 0, missingCert: 0 },
-        nid: { total: data.id_cards ?? 0, active: data.id_cards ?? 0, suspended: 0, disabled: 0, undelivered: 0 },
-        residency: { books: data.households ?? 0, residents: data.citizens ?? 0 },
-        family: { households: data.households ?? 0, dependents: data.citizens ?? 0 },
+        birth: { total: data.total_birth_certificates ?? 0, registered: data.total_birth_certificates ?? 0, missingCert: 0 },
+        nid: { total: data.total_active_id_cards ?? 0, active: data.total_active_id_cards ?? 0, suspended: 0, disabled: 0, undelivered: 0 },
+        residency: { books: data.total_households ?? 0, residents: data.total_citizens ?? 0 },
+        family: { households: data.total_households ?? 0, dependents: data.total_citizens ?? 0 },
       });
     }).catch(() => {});
   }, []);
