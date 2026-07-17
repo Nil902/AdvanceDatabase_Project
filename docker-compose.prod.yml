@@ -68,7 +68,7 @@ services:
       POSTGRES_PASSWORD: postgres
     command: postgres -c config_file=/etc/postgresql/pgbadger.conf
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"   # loopback only — reach via SSH tunnel, not the public internet
     volumes:
       - pgdata:/var/lib/postgresql/data
       - pg-logs:/var/log/postgresql
@@ -101,7 +101,7 @@ services:
     image: mongo:7
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"   # loopback only — reach via SSH tunnel, not the public internet
     volumes:
       - mongodata:/data/db
 
@@ -109,7 +109,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"   # loopback only — reach via SSH tunnel, not the public internet
     volumes:
       - redisdata:/data
 
