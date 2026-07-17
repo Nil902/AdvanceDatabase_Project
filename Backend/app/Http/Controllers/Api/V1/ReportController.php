@@ -40,7 +40,7 @@ class ReportController extends Controller
                 ->join('districts', 'communes.district_id', '=', 'districts.district_id')
                 ->join('provinces', 'districts.province_id', '=', 'provinces.province_id');
 
-            return match ($groupBy) {
+            $rows = match ($groupBy) {
                 'gender' => $query->select('gender', DB::raw('count(*) as total'))
                     ->groupBy('gender')
                     ->get(),
@@ -60,6 +60,11 @@ class ReportController extends Controller
                     ->groupBy('provinces.province_name_en')
                     ->get(),
             };
+
+            // Cache plain arrays, not a Collection of stdClass — serialising the
+            // Collection into Redis and reading it back yields a broken
+            // __PHP_Incomplete_Class in the JSON response.
+            return $rows->map(fn ($row) => (array) $row)->all();
         });
 
         return response()->json($demographics);
