@@ -41,13 +41,15 @@ services:
       CACHE_STORE: redis
       SESSION_DRIVER: redis
       QUEUE_CONNECTION: redis
-      MAIL_MAILER: ${MAIL_MAILER:-log}
-      MAIL_HOST: smtp.gmail.com
-      MAIL_PORT: 587
-      MAIL_USERNAME: sina015772825@gmail.com
-      MAIL_PASSWORD: "gdxm ytrt ksxm scwm"
-      MAIL_ENCRYPTION: tls
-      MAIL_FROM_ADDRESS: sina015772825@gmail.com
+      # DigitalOcean blocks outbound SMTP ports (25/465/587) on droplets, so we
+      # send through the Gmail REST API over HTTPS instead (App\Mail\GmailApiTransport).
+      # OAuth credentials come from the server-side .env (NOT committed):
+      #   GMAIL_CLIENT_ID  GMAIL_CLIENT_SECRET  GMAIL_REFRESH_TOKEN
+      MAIL_MAILER: ${MAIL_MAILER:-gmail_api}
+      GMAIL_CLIENT_ID: ${GMAIL_CLIENT_ID:-}
+      GMAIL_CLIENT_SECRET: ${GMAIL_CLIENT_SECRET:-}
+      GMAIL_REFRESH_TOKEN: ${GMAIL_REFRESH_TOKEN:-}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-sina015772825@gmail.com}
       MAIL_FROM_NAME: CivilRegistry
       RUN_MIGRATIONS: "true"
       PGBADGER_URL: http://134.209.105.170:8081

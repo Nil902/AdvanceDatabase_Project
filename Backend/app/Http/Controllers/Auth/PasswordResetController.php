@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class PasswordResetController extends Controller
@@ -38,9 +39,15 @@ class PasswordResetController extends Controller
             'created_at' => Carbon::now(),
         ]);
 
-        Mail::raw("Your password reset code is: {$otp}. It expires in 10 minutes.", function ($message) use ($email) {
-            $message->to($email)->subject('Password Reset OTP');
-        });
+        try {
+            Mail::raw("Your password reset code is: {$otp}. It expires in 10 minutes.", function ($message) use ($email) {
+                $message->to($email)->subject('Password Reset OTP');
+            });
+        } catch (\Throwable $e) {
+            // Don't leak delivery state to the caller, but record it so we can
+            // diagnose transport problems (e.g. Gmail OAuth misconfiguration).
+            Log::error('OTP email delivery failed', ['email' => $email, 'error' => $e->getMessage()]);
+        }
 
         return response()->json(['message' => 'If that email is registered, an OTP has been sent.']);
     }

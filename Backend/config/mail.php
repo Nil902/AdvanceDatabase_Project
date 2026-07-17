@@ -65,6 +65,14 @@ return [
             'transport' => 'resend',
         ],
 
+        // Sends via the Gmail REST API over HTTPS (see App\Mail\GmailApiTransport).
+        'gmail_api' => [
+            'transport' => 'gmail_api',
+            'client_id' => env('GMAIL_CLIENT_ID'),
+            'client_secret' => env('GMAIL_CLIENT_SECRET'),
+            'refresh_token' => env('GMAIL_REFRESH_TOKEN'),
+        ],
+
         'sendmail' => [
             'transport' => 'sendmail',
             'path' => env('MAIL_SENDMAIL_PATH', '/usr/sbin/sendmail -bs -i'),
