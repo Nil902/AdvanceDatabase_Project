@@ -120,12 +120,17 @@ interface CreateForm {
     district: string;
     commune: string;
     village: string;
+    bookSerial: string;
+    houseNo: string;
+    kromNo: string;
+    policeStation: string;
     streetAddress: string;
     head: ApiCitizen | null;
 }
 
 const emptyCreateForm: CreateForm = {
-    province: '', district: '', commune: '', village: '', streetAddress: '', head: null,
+    province: '', district: '', commune: '', village: '',
+    bookSerial: '', houseNo: '', kromNo: '', policeStation: '', streetAddress: '', head: null,
 };
 
 function formatDate(iso: string): string {
@@ -274,9 +279,12 @@ export default function ResidencyBookPage() {
         try {
             const created = await api.post<{ data: ApiHousehold }>('/households', {
                 household_number: `HH-${Date.now().toString().slice(-6)}`,
+                book_serial: createForm.bookSerial.trim() || null,
                 village_id: Number(createForm.village),
                 household_head_id: createForm.head.id,
-                house_no: createForm.streetAddress || null,
+                house_no: createForm.houseNo.trim() || null,
+                krom_no: createForm.kromNo.trim() || null,
+                police_station: createForm.policeStation.trim() || null,
                 address_detail: createForm.streetAddress || null,
                 issued_at: new Date().toISOString().slice(0, 10),
             });
@@ -484,6 +492,25 @@ export default function ResidencyBookPage() {
                             <SelectField label="District (ស្រុក/ខណ្ឌ)" value={createForm.district} onChange={(v) => updateCreateField('district', v)} options={districts} placeholder="Select district" disabled={!createForm.province} />
                             <SelectField label="Commune (ឃុំ/សង្កាត់)" value={createForm.commune} onChange={(v) => updateCreateField('commune', v)} options={communes} placeholder="Select commune" disabled={!createForm.district} />
                             <SelectField label="Village (ភូមិ)" value={createForm.village} onChange={(v) => updateCreateField('village', v)} options={villages} placeholder="Select village" disabled={!createForm.commune} />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-700">Book Serial</label>
+                                <input type="text" value={createForm.bookSerial} onChange={(e) => updateCreateField('bookSerial', e.target.value)} placeholder="e.g. RB-000123" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                            </div>
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-700">House No.</label>
+                                <input type="text" value={createForm.houseNo} onChange={(e) => updateCreateField('houseNo', e.target.value)} placeholder="e.g. 12A" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                            </div>
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-700">Krom No.</label>
+                                <input type="text" value={createForm.kromNo} onChange={(e) => updateCreateField('kromNo', e.target.value)} placeholder="e.g. 5" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                            </div>
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-700">Police Station</label>
+                                <input type="text" value={createForm.policeStation} onChange={(e) => updateCreateField('policeStation', e.target.value)} placeholder="e.g. Chamkarmon PS" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                            </div>
                         </div>
 
                         <div className="mb-4">

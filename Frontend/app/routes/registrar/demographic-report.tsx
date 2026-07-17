@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Home, CreditCard, BookMarked, Activity, Users2, Download, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
-import { api, ApiError } from '~/lib/api';
+import { api, ApiError, getStoredUser } from '~/lib/api';
 
 interface AgeGroup {
   label: string;
@@ -46,16 +46,28 @@ const emptySummary: ReportSummary = {
   total_active_id_cards: 0,
 };
 
-// TODO: pull from logged-in registrar / server clock instead of hardcoding
-const reportMeta = {
+// Stored user shape (SystemUserResource) used for the report's compiler line.
+interface ReportUser {
+  user_id: number;
+  username: string;
+  full_name_en: string | null;
+}
+
+const departmentInfo = {
   department: 'General Department of Identification, Ministry of Interior',
   departmentKh: 'នាយកដ្ឋានទូទៅនៃអត្តសញ្ញាណកម្មសាធារណៈ ក្រសួងមហាផ្ទៃ',
-  compilerName: 'Sok Cheat',
-  compilerRefId: 'SC-1002',
-  generatedAt: new Date().toISOString(),
 };
 
 export default function DemographicReportPage() {
+  // Compiler identity + timestamp come from the logged-in user and the clock.
+  const reportUser = getStoredUser<ReportUser>();
+  const reportMeta = {
+    ...departmentInfo,
+    compilerName: reportUser?.full_name_en || reportUser?.username || 'Unknown Officer',
+    compilerRefId: reportUser ? `UID-${reportUser.user_id}` : '—',
+    generatedAt: new Date().toLocaleString(),
+  };
+
   const [showReport, setShowReport] = useState(false);
   const [showDownloadToast, setShowDownloadToast] = useState(false);
 

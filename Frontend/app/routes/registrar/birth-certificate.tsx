@@ -97,6 +97,10 @@ export default function BirthCertificatePage() {
   const [formMother, setFormMother] = useState<CitizenOption | null>(null);
   const [formFather, setFormFather] = useState<CitizenOption | null>(null);
   const [formCertNumber, setFormCertNumber] = useState('');
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const [formIssueDate, setFormIssueDate] = useState(todayStr);
+  const [formRegisteredDate, setFormRegisteredDate] = useState(todayStr);
+  const [formRemarks, setFormRemarks] = useState('');
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [registrarName, setRegistrarName] = useState('Registrar');
@@ -166,7 +170,6 @@ export default function BirthCertificatePage() {
       setActionError('Enter a certificate number.');
       return;
     }
-    const today = new Date().toISOString().slice(0, 10);
     setBusy(true);
     try {
       await api.post('/birth-certificates', {
@@ -174,8 +177,9 @@ export default function BirthCertificatePage() {
         mother_citizen_id: formMother?.id ?? null,
         father_citizen_id: formFather?.id ?? null,
         certificate_number: formCertNumber.trim(),
-        issue_date: today,
-        registered_date: today,
+        issue_date: formIssueDate || null,
+        registered_date: formRegisteredDate || null,
+        remarks: formRemarks.trim() || null,
       });
       const list = await loadRecords();
       setShowRegisterForm(false);
@@ -329,6 +333,25 @@ export default function BirthCertificatePage() {
                     value={formCertNumber}
                     onChange={(e) => setFormCertNumber(e.target.value)}
                     placeholder="e.g. BC-2026-0091"
+                    className="input-field"
+                  />
+                </Field>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Issue Date">
+                    <input type="date" value={formIssueDate} onChange={(e) => setFormIssueDate(e.target.value)} className="input-field" />
+                  </Field>
+                  <Field label="Registered Date">
+                    <input type="date" value={formRegisteredDate} onChange={(e) => setFormRegisteredDate(e.target.value)} className="input-field" />
+                  </Field>
+                </div>
+
+                <Field label="Remarks (optional)">
+                  <textarea
+                    rows={2}
+                    value={formRemarks}
+                    onChange={(e) => setFormRemarks(e.target.value)}
+                    placeholder="Any additional notes"
                     className="input-field"
                   />
                 </Field>

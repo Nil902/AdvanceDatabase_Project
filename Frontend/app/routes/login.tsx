@@ -23,8 +23,7 @@ export default function LoginPage() {
       const data = await api.post<{ token: string; user: { role?: { role_code?: string } } }>('/auth/login', { username, password });
       localStorage.setItem('auth_token', data.token);
       localStorage.setItem('auth_user', JSON.stringify(data.user));
-      const role = data.user?.role?.role_code;
-      navigate(role === 'admin' ? '/dashboard' : '/registrar');
+      navigate(homeForRole(data.user?.role?.role_code));
     } catch (err: any) {
       setError(err.message || 'An error occurred during login.');
     } finally {
@@ -188,7 +187,7 @@ export default function LoginPage() {
         </div>
 
         <div className="text-center text-xs text-slate-500">
-          <p>System Version 4.2.0-LTS &bull; Regional Access Zone: North</p>
+          <p>National Identity Management System</p>
           <p className="mt-1">&copy; 2024 National Identity Management Authority. All Rights Reserved.</p>
         </div>
       </div>

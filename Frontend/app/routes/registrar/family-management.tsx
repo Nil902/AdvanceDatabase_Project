@@ -99,6 +99,7 @@ export default function FamilyManagementPage() {
 
   // --- Create family state ---
   const [headCitizen, setHeadCitizen] = useState<CitizenOption | null>(null);
+  const [familyCode, setFamilyCode] = useState('');
   const [createLoading, setCreateLoading] = useState(false);
 
   // --- Add member state ---
@@ -173,11 +174,13 @@ export default function FamilyManagementPage() {
     try {
       const res = await api.post<{ data: any }>('/families', {
         head_citizen_id: headCitizen.id,
+        family_code: familyCode.trim() || null,
       });
       const newFamily = mapApiFamily(res.data ?? res);
       setFamilies((prev) => [...prev, newFamily]);
       setPanel({ type: 'detail', familyId: newFamily.id });
       setHeadCitizen(null);
+      setFamilyCode('');
       showToast('Family created successfully');
     } catch (err: any) {
       console.error('Failed to create family:', err);
@@ -347,6 +350,16 @@ export default function FamilyManagementPage() {
                   placeholder="Search citizen by name or NID..."
                   selected={headCitizen}
                   onSelect={setHeadCitizen}
+                />
+              </Field>
+
+              <Field label="Family Code (optional)">
+                <input
+                  type="text"
+                  value={familyCode}
+                  onChange={(e) => setFamilyCode(e.target.value)}
+                  placeholder="Auto-assigned if left blank"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400"
                 />
               </Field>
 

@@ -101,19 +101,47 @@ interface StoredUser {
 type Tab = 'inspect' | 'issues';
 type Panel = { type: 'empty' } | { type: 'create' } | { type: 'detail'; cardId: string };
 
-// StoreIdCardRequest accepts these card_type values.
+// StoreIdCardRequest accepts these card_type / status values.
 type CardType = 'national_id' | 'temp_id' | 'foreigner_id';
+type CardStatus = 'active' | 'expired' | 'revoked' | 'lost' | 'stolen';
 const cardTypeOptions: { value: CardType; label: string }[] = [
     { value: 'national_id', label: 'National ID' },
     { value: 'temp_id', label: 'Temporary ID' },
     { value: 'foreigner_id', label: 'Foreigner ID' },
 ];
+const cardStatusOptions: { value: CardStatus; label: string }[] = [
+    { value: 'active', label: 'Active' },
+    { value: 'expired', label: 'Expired' },
+    { value: 'revoked', label: 'Revoked' },
+    { value: 'lost', label: 'Lost' },
+    { value: 'stolen', label: 'Stolen' },
+];
+
+const today = () => new Date().toISOString().slice(0, 10);
+const tenYearsOut = () => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 10);
+    return d.toISOString().slice(0, 10);
+};
 
 interface CreateForm {
     citizen: CitizenOption | null;
     cardType: CardType;
+    serial: string;
+    status: CardStatus;
+    issueDate: string;
+    expiryDate: string;
+    biometricRef: string;
 }
-const emptyCreateForm: CreateForm = { citizen: null, cardType: 'national_id' };
+const emptyCreateForm: CreateForm = {
+    citizen: null,
+    cardType: 'national_id',
+    serial: '',
+    status: 'active',
+    issueDate: today(),
+    expiryDate: tenYearsOut(),
+    biometricRef: '',
+};
 
 function formatDate(iso: string): string {
     return new Date(iso).toLocaleDateString('en-US');
@@ -206,10 +234,7 @@ export default function NationalIdCardPage() {
             setActionError('Select a verified citizen first.');
             return;
         }
-        const issueDate = new Date();
-        const expiryDate = new Date(issueDate);
-        expiryDate.setFullYear(expiryDate.getFullYear() + 10);
-        const serial = `NID-${Date.now().toString().slice(-8)}`;
+        const serial = createForm.serial.trim() || `NID-${Date.now().toString().slice(-8)}`;
 
         setBusy(true);
         try {
@@ -217,9 +242,10 @@ export default function NationalIdCardPage() {
                 citizen_id: createForm.citizen.id,
                 card_serial_number: serial,
                 card_type: createForm.cardType,
-                status: 'active',
-                issue_date: issueDate.toISOString().slice(0, 10),
-                expiry_date: expiryDate.toISOString().slice(0, 10),
+                status: createForm.status,
+                issue_date: createForm.issueDate,
+                expiry_date: createForm.expiryDate,
+                biometric_ref: createForm.biometricRef.trim() || null,
             });
             const list = await loadCards();
             const newId = String(created.data.id);
@@ -376,7 +402,61 @@ export default function NationalIdCardPage() {
                             >
                                 {cardTypeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                             </select>
-                            <p className="mt-1.5 text-[11px] text-slate-400">Serial number is auto-generated; validity defaults to 10 years.</p>
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Card Serial Number</label>
+                            <input
+                                type="text"
+                                value={createForm.serial}
+                                onChange={(e) => setCreateForm((f) => ({ ...f, serial: e.target.value }))}
+                                placeholder="Auto-generated if left blank"
+                                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                            />
+                        </div>
+
+                        <div className="mb-4 grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-700">Issue Date *</label>
+                                <input
+                                    type="date"
+                                    value={createForm.issueDate}
+                                    onChange={(e) => setCreateForm((f) => ({ ...f, issueDate: e.target.value }))}
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                />
+                            </div>
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-700">Expiry Date *</label>
+                                <input
+                                    type="date"
+                                    value={createForm.expiryDate}
+                                    onChange={(e) => setCreateForm((f) => ({ ...f, expiryDate: e.target.value }))}
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="mb-4 grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-700">Status *</label>
+                                <select
+                                    value={createForm.status}
+                                    onChange={(e) => setCreateForm((f) => ({ ...f, status: e.target.value as CardStatus }))}
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                >
+                                    {cardStatusOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-700">Biometric Ref (UUID)</label>
+                                <input
+                                    type="text"
+                                    value={createForm.biometricRef}
+                                    onChange={(e) => setCreateForm((f) => ({ ...f, biometricRef: e.target.value }))}
+                                    placeholder="Optional"
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                />
+                            </div>
                         </div>
 
                         <button

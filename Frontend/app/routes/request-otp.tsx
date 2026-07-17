@@ -171,7 +171,7 @@ export default function RequestOtpPage() {
         </div>
 
         <div className="text-center text-xs text-slate-500">
-          <p>System Version 4.2.0-LTS &bull; Regional Access Zone: North</p>
+          <p>National Identity Management System</p>
           <p className="mt-1">&copy; 2024 National Identity Management Authority. All Rights Reserved.</p>
         </div>
       </div>
