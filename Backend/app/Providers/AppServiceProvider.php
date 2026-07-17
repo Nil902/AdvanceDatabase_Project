@@ -2,11 +2,9 @@
 
 namespace App\Providers;
 
-use App\Mail\GmailApiTransport;
 use App\Models\SystemUser;
 use App\Models\UserAuthToken;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -18,16 +16,6 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Custom "gmail_api" mail transport — sends over HTTPS via the Gmail
-        // REST API (DigitalOcean blocks SMTP ports on droplets).
-        Mail::extend('gmail_api', function (array $config) {
-            return new GmailApiTransport(
-                (string) ($config['client_id'] ?? ''),
-                (string) ($config['client_secret'] ?? ''),
-                (string) ($config['refresh_token'] ?? ''),
-            );
-        });
-
         Auth::viaRequest('api_token', function ($request) {
             $plainToken = $request->bearerToken();
 

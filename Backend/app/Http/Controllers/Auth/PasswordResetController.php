@@ -39,13 +39,16 @@ class PasswordResetController extends Controller
             'created_at' => Carbon::now(),
         ]);
 
+        // Delivery is via the `log` mail driver (MAIL_MAILER=log → stderr), so
+        // the OTP shows up in `docker compose logs app`. Also emit an explicit,
+        // easy-to-grep line for convenience.
+        Log::info("PASSWORD RESET OTP for {$email}: {$otp} (valid 10 min)");
+
         try {
             Mail::raw("Your password reset code is: {$otp}. It expires in 10 minutes.", function ($message) use ($email) {
                 $message->to($email)->subject('Password Reset OTP');
             });
         } catch (\Throwable $e) {
-            // Don't leak delivery state to the caller, but record it so we can
-            // diagnose transport problems (e.g. Gmail OAuth misconfiguration).
             Log::error('OTP email delivery failed', ['email' => $email, 'error' => $e->getMessage()]);
         }
 

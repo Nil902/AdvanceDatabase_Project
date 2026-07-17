@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\BirthCertificateController;
 use App\Http\Controllers\Api\V1\CitizenController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\Api\V1\IdCardController;
 use App\Http\Controllers\Api\V1\LocationController;
 use App\Http\Controllers\Api\V1\PerformanceController;
 use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\SystemUserController;
 use App\Http\Controllers\Api\V1\VitalEventController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use Illuminate\Support\Facades\Route;
@@ -125,11 +127,22 @@ Route::prefix('v1')->group(function () {
         // ── Location Cache Management ────────────────────────────────────
         Route::delete('locations/cache', [LocationController::class, 'clearCache']);
 
-        // ── Admin: Infrastructure Performance (admin role only) ──────────
-        Route::prefix('admin/performance')->middleware('ability:admin:read')->group(function () {
-            Route::get('database', [PerformanceController::class, 'database']);
-            Route::get('redis', [PerformanceController::class, 'redis']);
-            Route::get('pgbadger', [PerformanceController::class, 'pgbadger']);
+        // ── Admin (admin role only — all guarded by admin:read) ──────────
+        Route::prefix('admin')->middleware('ability:admin:read')->group(function () {
+            // Infrastructure performance
+            Route::get('performance/database', [PerformanceController::class, 'database']);
+            Route::get('performance/redis', [PerformanceController::class, 'redis']);
+            Route::get('performance/pgbadger', [PerformanceController::class, 'pgbadger']);
+
+            // User management
+            Route::get('users', [SystemUserController::class, 'index']);
+            Route::post('users', [SystemUserController::class, 'store']);
+            Route::put('users/{id}', [SystemUserController::class, 'update']);
+            Route::delete('users/{id}', [SystemUserController::class, 'destroy']);
+            Route::get('roles', [SystemUserController::class, 'roles']);
+
+            // Audit logs
+            Route::get('audit-logs', [AuditLogController::class, 'index']);
         });
     });
 });
