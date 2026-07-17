@@ -120,17 +120,22 @@ interface CreateForm {
     district: string;
     commune: string;
     village: string;
+    householdNumber: string;
     bookSerial: string;
     houseNo: string;
     kromNo: string;
     policeStation: string;
     streetAddress: string;
+    issuedAt: string;
     head: ApiCitizen | null;
 }
 
 const emptyCreateForm: CreateForm = {
     province: '', district: '', commune: '', village: '',
-    bookSerial: '', houseNo: '', kromNo: '', policeStation: '', streetAddress: '', head: null,
+    householdNumber: `HH-${Date.now().toString().slice(-6)}`,
+    bookSerial: '', houseNo: '', kromNo: '', policeStation: '', streetAddress: '',
+    issuedAt: new Date().toISOString().slice(0, 10),
+    head: null,
 };
 
 function formatDate(iso: string): string {
@@ -278,7 +283,7 @@ export default function ResidencyBookPage() {
         setBusy(true);
         try {
             const created = await api.post<{ data: ApiHousehold }>('/households', {
-                household_number: `HH-${Date.now().toString().slice(-6)}`,
+                household_number: createForm.householdNumber.trim(),
                 book_serial: createForm.bookSerial.trim() || null,
                 village_id: Number(createForm.village),
                 household_head_id: createForm.head.id,
@@ -286,7 +291,7 @@ export default function ResidencyBookPage() {
                 krom_no: createForm.kromNo.trim() || null,
                 police_station: createForm.policeStation.trim() || null,
                 address_detail: createForm.streetAddress || null,
-                issued_at: new Date().toISOString().slice(0, 10),
+                issued_at: createForm.issuedAt || null,
             });
             const list = await loadBooks();
             setCreateForm(emptyCreateForm);
@@ -495,6 +500,14 @@ export default function ResidencyBookPage() {
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-700">Household Number *</label>
+                                <input type="text" value={createForm.householdNumber} onChange={(e) => updateCreateField('householdNumber', e.target.value)} placeholder="e.g. HH-000123" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                            </div>
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-700">Issued At</label>
+                                <input type="date" value={createForm.issuedAt} onChange={(e) => updateCreateField('issuedAt', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                            </div>
                             <div>
                                 <label className="mb-1.5 block text-xs font-semibold text-slate-700">Book Serial</label>
                                 <input type="text" value={createForm.bookSerial} onChange={(e) => updateCreateField('bookSerial', e.target.value)} placeholder="e.g. RB-000123" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400" />
