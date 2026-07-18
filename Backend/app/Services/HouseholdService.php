@@ -30,15 +30,13 @@ class HouseholdService
 
     public function getMembers(int $householdId)
     {
-        return Cache::tags(['households'])->remember(
-            "household:{$householdId}:members",
-            now()->addMinutes(10),
-            function () use ($householdId) {
-                $household = Household::findOrFail($householdId);
+        // NOTE: do not cache the Eloquent Collection here. This cache store
+        // deserializes cached models as __PHP_Incomplete_Class, which then blows
+        // up HouseholdMemberResource::collection() with a 500 (same reason the
+        // demographics report was switched away from caching Collections).
+        $household = Household::findOrFail($householdId);
 
-                return $household->members()->with('citizen')->get();
-            }
-        );
+        return $household->members()->with('citizen')->get();
     }
 
     public function addMember(int $householdId, array $data): HouseholdMember
@@ -129,18 +127,14 @@ class HouseholdService
 
     public function getHistory(int $householdId)
     {
-        return Cache::tags(['households'])->remember(
-            "household:{$householdId}:history",
-            now()->addMinutes(10),
-            function () use ($householdId) {
-                Household::findOrFail($householdId);
+        // Not cached — see getMembers(): cached Eloquent Collections deserialize
+        // as __PHP_Incomplete_Class on this store and 500 on serialization.
+        Household::findOrFail($householdId);
 
-                return MoveHistory::where('from_household_id', $householdId)
-                    ->orWhere('to_household_id', $householdId)
-                    ->with('resident')
-                    ->orderByDesc('move_date')
-                    ->get();
-            }
-        );
+        return MoveHistory::where('from_household_id', $householdId)
+            ->orWhere('to_household_id', $householdId)
+            ->with('resident')
+            ->orderByDesc('move_date')
+            ->get();
     }
 }
