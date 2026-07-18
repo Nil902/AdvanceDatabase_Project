@@ -166,16 +166,15 @@ export default function BirthCertificatePage() {
   const selectedRecord = records.find((r) => r.id === selectedId) ?? null;
 
   // Load the selected record's stored scan (auth-guarded blob → object URL).
+  // Blank it first so the previous record's scan never lingers while loading.
   useEffect(() => {
+    setDetailPhoto(null);
+    if (!selectedRecord?.hasPhoto) return;
     let active = true;
     let created: string | null = null;
-    if (selectedRecord?.hasPhoto) {
-      fetchAuthedBlobUrl(`/birth-certificates/${selectedRecord.id}/photo`)
-        .then((url) => { if (active) { created = url; setDetailPhoto(url); } else URL.revokeObjectURL(url); })
-        .catch(() => { if (active) setDetailPhoto(null); });
-    } else {
-      setDetailPhoto(null);
-    }
+    fetchAuthedBlobUrl(`/birth-certificates/${selectedRecord.id}/photo`)
+      .then((url) => { if (active) { created = url; setDetailPhoto(url); } else URL.revokeObjectURL(url); })
+      .catch(() => { if (active) setDetailPhoto(null); });
     return () => { active = false; if (created) URL.revokeObjectURL(created); };
   }, [selectedRecord?.id, selectedRecord?.hasPhoto]);
 
@@ -332,7 +331,7 @@ export default function BirthCertificatePage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setShowRegisterForm(false)}
+                  onClick={() => { clearPhoto(); setShowRegisterForm(false); }}
                   className="text-[11px] font-semibold text-slate-400 hover:text-slate-600"
                 >
                   Cancel

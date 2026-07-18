@@ -225,16 +225,15 @@ export default function NationalIdCardPage() {
     const selected = panel.type === 'detail' ? cards.find((c) => c.id === panel.cardId) ?? null : null;
 
     // Load the selected card's stored photo (auth-guarded blob → object URL).
+    // Blank it first so the previous card's photo never lingers while loading.
     useEffect(() => {
+        setDetailPhoto(null);
+        if (!selected?.hasPhoto) return;
         let active = true;
         let created: string | null = null;
-        if (selected?.hasPhoto) {
-            fetchAuthedBlobUrl(`/id-cards/${selected.id}/photo`)
-                .then((url) => { if (active) { created = url; setDetailPhoto(url); } else URL.revokeObjectURL(url); })
-                .catch(() => { if (active) setDetailPhoto(null); });
-        } else {
-            setDetailPhoto(null);
-        }
+        fetchAuthedBlobUrl(`/id-cards/${selected.id}/photo`)
+            .then((url) => { if (active) { created = url; setDetailPhoto(url); } else URL.revokeObjectURL(url); })
+            .catch(() => { if (active) setDetailPhoto(null); });
         return () => { active = false; if (created) URL.revokeObjectURL(created); };
     }, [selected?.id, selected?.hasPhoto]);
 
@@ -415,7 +414,7 @@ export default function NationalIdCardPage() {
                             <h2 className="text-sm font-bold text-slate-900">New Card Request</h2>
                             <button
                                 type="button"
-                                onClick={() => setPanel({ type: 'empty' })}
+                                onClick={() => { resetCreateForm(); setPanel({ type: 'empty' }); }}
                                 className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1 text-[10px] font-bold text-slate-600 hover:bg-slate-50"
                             >
                                 <ArrowLeft className="h-3 w-3" />
