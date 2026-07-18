@@ -21,7 +21,7 @@ export function EditUserModal({ users }: { users: UsersController }) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className={labelCls}>Username *</label>
-              <input type="text" required value={d.username} onChange={(e) => set({ username: e.target.value })} className={inputCls} />
+              <input type="text" required autoComplete="off" value={d.username} onChange={(e) => set({ username: e.target.value })} className={inputCls} />
             </div>
             <div className="space-y-1.5">
               <label className={labelCls}>Full Name (EN)</label>
@@ -39,7 +39,7 @@ export function EditUserModal({ users }: { users: UsersController }) {
             </div>
             <div className="space-y-1.5">
               <label className={labelCls}>New Password</label>
-              <input type="password" minLength={8} value={d.password} onChange={(e) => set({ password: e.target.value })} className={inputCls} placeholder="leave blank to keep" />
+              <input type="password" autoComplete="new-password" minLength={8} value={d.password} onChange={(e) => set({ password: e.target.value })} className={inputCls} placeholder="leave blank to keep" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">

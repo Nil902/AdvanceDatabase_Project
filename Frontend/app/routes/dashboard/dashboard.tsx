@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { getStoredUser, getToken, api } from '../../lib/api';
 import { AuthGuard } from '../../components/AuthGuard';
 import { registrarPath } from './constants';
 import type { DashboardTab, ModuleKey } from './types';
@@ -16,8 +15,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [currentTab, setCurrentTab] = useState<DashboardTab>('overview');
 
-  const user = getStoredUser<{ name: string; email: string }>();
-  const profile = useProfileForm(user?.name ?? '', user?.email ?? '');
+  const profile = useProfileForm();
   const users = useUsers();
   const security = useSecuritySettings();
 

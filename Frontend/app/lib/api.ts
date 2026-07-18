@@ -30,6 +30,11 @@ export function getStoredUser<T = unknown>(): T | null {
   }
 }
 
+export function setStoredUser(user: unknown) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
 export function clearSession() {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(TOKEN_KEY);

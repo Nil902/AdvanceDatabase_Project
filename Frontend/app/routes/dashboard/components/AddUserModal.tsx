@@ -39,7 +39,7 @@ export function AddUserModal({ users }: { users: UsersController }) {
             </div>
             <div className="space-y-1.5">
               <label className={labelCls}>Password *</label>
-              <input type="password" required minLength={8} value={d.password} onChange={(e) => set({ password: e.target.value })} className={inputCls} placeholder="min 8 characters" />
+              <input type="password" autoComplete="new-password" required minLength={8} value={d.password} onChange={(e) => set({ password: e.target.value })} className={inputCls} placeholder="min 8 characters" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">

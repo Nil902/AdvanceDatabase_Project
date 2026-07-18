@@ -112,7 +112,10 @@ export function useUsers() {
 
   useEffect(() => {
     loadUsers();
-    api.get<{ data: RoleOption[] }>('/admin/roles').then((r) => setRoles(r.data)).catch(() => {});
+    // The system only assigns two roles from this dashboard: admin + registrar.
+    api.get<{ data: RoleOption[] }>('/admin/roles')
+      .then((r) => setRoles(r.data.filter((role) => role.role_code === 'admin' || role.role_code === 'registrar')))
+      .catch(() => {});
   }, [loadUsers]);
 
   const defaultRoleId = roles.find((r) => r.role_code === 'registrar')?.role_id ?? roles[0]?.role_id ?? 3;
