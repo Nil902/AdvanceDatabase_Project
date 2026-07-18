@@ -11,6 +11,7 @@ use App\Models\BirthCertificate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -87,5 +88,36 @@ class BirthCertificateController extends Controller
         EnqueueCertificatePrint::dispatch($cert->certificate_id, 'birth');
 
         return response()->json(['message' => 'Queued for printing'], 202);
+    }
+
+    // POST /birth-certificates/{id}/photo — attach/replace the certificate scan.
+    // Stored on the persisted public disk; streamed back via photo() below.
+    public function uploadPhoto(Request $request, int $id)
+    {
+        $request->validate(['photo' => 'required|image|max:4096']);
+
+        $cert = BirthCertificate::findOrFail($id);
+
+        if ($cert->photo_path) {
+            Storage::disk('public')->delete($cert->photo_path);
+        }
+
+        $ext = $request->file('photo')->extension() ?: 'jpg';
+        $cert->photo_path = $request->file('photo')->storeAs("birth-certificates/{$id}", "scan.{$ext}", 'public');
+        $cert->save();
+
+        Cache::tags(['birth_certificates'])->forget("birth_cert:{$id}");
+
+        return new BirthCertificateResource($cert->fresh(['citizen', 'mother', 'father']));
+    }
+
+    // GET /birth-certificates/{id}/photo — stream the stored scan (auth-guarded).
+    public function photo(int $id)
+    {
+        $cert = BirthCertificate::findOrFail($id);
+
+        abort_if(! $cert->photo_path || ! Storage::disk('public')->exists($cert->photo_path), 404, 'No photo on file.');
+
+        return Storage::disk('public')->response($cert->photo_path);
     }
 }

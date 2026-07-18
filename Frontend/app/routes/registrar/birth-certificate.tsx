@@ -7,8 +7,9 @@ import {
   CheckCircle2,
   Loader2,
   AlertCircle,
+  ImagePlus,
 } from 'lucide-react';
-import { api, ApiError, getStoredUser, type Paginated } from '~/lib/api';
+import { api, ApiError, getStoredUser, fetchAuthedBlobUrl, type Paginated } from '~/lib/api';
 import { CitizenSearch, type CitizenOption } from '~/components/CitizenSearch';
 
 interface BirthRecord {
@@ -26,6 +27,7 @@ interface BirthRecord {
   birthCertNo: string;
   registryBookRef: string;
   avatar: string;
+  hasPhoto: boolean;
 }
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100';
@@ -46,6 +48,7 @@ interface ApiBirthCertificate {
   id: number;
   certificate_number: string;
   status: string;
+  has_photo?: boolean;
   issue_date: string | null;
   registered_date: string | null;
   citizen?: ApiCitizen | null;
@@ -71,6 +74,7 @@ function toBirthRecord(c: ApiBirthCertificate): BirthRecord {
     birthCertNo: c.certificate_number,
     registryBookRef: c.registered_date ? `Reg. ${c.registered_date}` : '—',
     avatar: DEFAULT_AVATAR,
+    hasPhoto: Boolean(c.has_photo),
   };
 }
 
@@ -101,9 +105,27 @@ export default function BirthCertificatePage() {
   const [formIssueDate, setFormIssueDate] = useState(todayStr);
   const [formRegisteredDate, setFormRegisteredDate] = useState(todayStr);
   const [formRemarks, setFormRemarks] = useState('');
+  const [formPhoto, setFormPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [detailPhoto, setDetailPhoto] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [registrarName, setRegistrarName] = useState('Registrar');
+
+  // Selected scan → local preview (revoke previous object URL to avoid leaks).
+  function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setFormPhoto(file);
+    setPhotoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return file ? URL.createObjectURL(file) : null;
+    });
+  }
+
+  function clearPhoto() {
+    setFormPhoto(null);
+    setPhotoPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+  }
 
   // GET /birth-certificates (paginated). Client-side search covers the loaded page.
   async function loadRecords(): Promise<BirthRecord[]> {
@@ -143,6 +165,20 @@ export default function BirthCertificatePage() {
 
   const selectedRecord = records.find((r) => r.id === selectedId) ?? null;
 
+  // Load the selected record's stored scan (auth-guarded blob → object URL).
+  useEffect(() => {
+    let active = true;
+    let created: string | null = null;
+    if (selectedRecord?.hasPhoto) {
+      fetchAuthedBlobUrl(`/birth-certificates/${selectedRecord.id}/photo`)
+        .then((url) => { if (active) { created = url; setDetailPhoto(url); } else URL.revokeObjectURL(url); })
+        .catch(() => { if (active) setDetailPhoto(null); });
+    } else {
+      setDetailPhoto(null);
+    }
+    return () => { active = false; if (created) URL.revokeObjectURL(created); };
+  }, [selectedRecord?.id, selectedRecord?.hasPhoto]);
+
   const handleSelectCitizen = (id: string) => {
     setSelectedId(id);
     setShowRegisterForm(false);
@@ -153,6 +189,7 @@ export default function BirthCertificatePage() {
     setFormMother(null);
     setFormFather(null);
     setFormCertNumber(`BC-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000 + 1000)}`);
+    clearPhoto();
     setActionError(null);
     setSelectedId(null);
     setShowRegisterForm(true);
@@ -172,7 +209,7 @@ export default function BirthCertificatePage() {
     }
     setBusy(true);
     try {
-      await api.post('/birth-certificates', {
+      const created = await api.post<{ data: ApiBirthCertificate }>('/birth-certificates', {
         citizen_id: formChild.id,
         mother_citizen_id: formMother?.id ?? null,
         father_citizen_id: formFather?.id ?? null,
@@ -181,10 +218,21 @@ export default function BirthCertificatePage() {
         registered_date: formRegisteredDate || null,
         remarks: formRemarks.trim() || null,
       });
+      // Attach the scan (if any) as a second step; a failed upload is non-fatal.
+      if (formPhoto) {
+        const fd = new FormData();
+        fd.append('photo', formPhoto);
+        try {
+          await api.post(`/birth-certificates/${created.data.id}/photo`, fd);
+        } catch {
+          setActionError('Certificate registered, but the image upload failed.');
+        }
+      }
       const list = await loadRecords();
       setShowRegisterForm(false);
-      const created = list.find((r) => r.birthCertNo === formCertNumber.trim());
-      if (created) setSelectedId(created.id);
+      clearPhoto();
+      const createdRow = list.find((r) => r.birthCertNo === formCertNumber.trim());
+      if (createdRow) setSelectedId(createdRow.id);
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : 'Failed to register birth certificate.');
     } finally {
@@ -356,6 +404,26 @@ export default function BirthCertificatePage() {
                   />
                 </Field>
 
+                <Field label="Certificate Scan / Photo (optional)">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-24 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-100 text-slate-400">
+                      {photoPreview ? (
+                        <img src={photoPreview} alt="Selected" className="h-full w-full object-cover" />
+                      ) : (
+                        <FileText className="h-8 w-8" />
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                        <ImagePlus className="h-3.5 w-3.5" />
+                        {formPhoto ? 'Change Image' : 'Upload Image'}
+                        <input type="file" accept="image/*" onChange={onPhotoChange} className="hidden" />
+                      </label>
+                      <p className="text-[10px] text-slate-400">JPG or PNG, up to 4 MB.</p>
+                    </div>
+                  </div>
+                </Field>
+
                 <button
                   type="submit"
                   disabled={busy || !formChild}
@@ -397,6 +465,13 @@ export default function BirthCertificatePage() {
                 <DetailField label="Birth Certification No." value={selectedRecord.birthCertNo} />
                 <DetailField label="Registry Book Reference" value={selectedRecord.registryBookRef} />
               </div>
+
+              {detailPhoto && (
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 mb-1">Certificate Scan / Photo</p>
+                  <img src={detailPhoto} alt="Certificate scan" className="max-h-64 rounded-lg border border-slate-200 object-contain" />
+                </div>
+              )}
 
               {selectedRecord.status === 'No Birth Cert.' && (
                 <p className="text-[11px] text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">

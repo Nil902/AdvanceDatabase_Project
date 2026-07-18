@@ -53,6 +53,7 @@ Route::prefix('v1')->group(function () {
         // Auth
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('auth/me', [AuthController::class, 'me']);
+        Route::put('auth/me', [AuthController::class, 'updateProfile']);
 
         // ── Birth Certificates ───────────────────────────────────────────
         Route::apiResource('birth-certificates', BirthCertificateController::class)
@@ -62,6 +63,10 @@ Route::prefix('v1')->group(function () {
             ->middleware('ability:birth:verify');
         Route::post('birth-certificates/{id}/print', [BirthCertificateController::class, 'print'])
             ->middleware('ability:birth:print');
+        Route::post('birth-certificates/{id}/photo', [BirthCertificateController::class, 'uploadPhoto'])
+            ->middleware('ability:birth:update');
+        Route::get('birth-certificates/{id}/photo', [BirthCertificateController::class, 'photo'])
+            ->middleware('ability:birth:read');
 
         // ── Geography (reference data for address pickers) ────────────────
         Route::get('geo/provinces', [GeoController::class, 'provinces']);
@@ -84,6 +89,10 @@ Route::prefix('v1')->group(function () {
         Route::post('id-cards/{id}/replace', [IdCardController::class, 'replace']);
         Route::patch('id-cards/{id}/status', [IdCardController::class, 'updateStatus']);
         Route::post('id-cards/{id}/dispatch', [IdCardController::class, 'dispatch']);
+        Route::post('id-cards/{id}/photo', [IdCardController::class, 'uploadPhoto'])
+            ->middleware('ability:id_card:update');
+        Route::get('id-cards/{id}/photo', [IdCardController::class, 'photo'])
+            ->middleware('ability:id_card:read');
 
         // ── Households ───────────────────────────────────────────────────
         Route::get('households', [HouseholdController::class, 'index'])

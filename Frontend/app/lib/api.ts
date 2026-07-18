@@ -126,6 +126,19 @@ export const api = {
   del: <T = unknown>(path: string) => apiFetch<T>(path, { method: 'DELETE' }),
 };
 
+// Fetches a binary resource (e.g. a stored photo) with the auth token and
+// returns an object URL suitable for <img src>. An <img> can't send an
+// Authorization header itself, so we pull the bytes here and hand back a blob
+// URL. The caller must URL.revokeObjectURL() it when done to avoid leaks.
+export async function fetchAuthedBlobUrl(path: string): Promise<string> {
+  const token = getToken();
+  const res = await fetch(buildUrl(path), {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (!res.ok) throw new ApiError(`Failed to load resource (status ${res.status})`, res.status);
+  return URL.createObjectURL(await res.blob());
+}
+
 // Shape Laravel returns for `Resource::collection($paginator)`.
 export interface Paginated<T> {
   data: T[];

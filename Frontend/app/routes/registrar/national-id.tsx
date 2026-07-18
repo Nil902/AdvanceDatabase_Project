@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import {
-    CreditCard, ShieldCheck, Eye, Inbox, Plus, ArrowLeft, UserRound, Loader2, AlertCircle,
+    CreditCard, ShieldCheck, Eye, Inbox, Plus, ArrowLeft, UserRound, Loader2, AlertCircle, ImagePlus,
 } from 'lucide-react';
-import { api, ApiError, getStoredUser, type Paginated } from '~/lib/api';
+import { api, ApiError, getStoredUser, fetchAuthedBlobUrl, type Paginated } from '~/lib/api';
 import { CitizenSearch, type CitizenOption } from '~/components/CitizenSearch';
 
 type PipelineStage = 'Pending Admin' | 'Smart Print Active' | 'Dispatched Province' | 'Delivered Station';
@@ -20,6 +20,7 @@ interface NidCard {
     address: string;
     expiresOn: string; // ISO
     status: NidStatus;
+    hasPhoto: boolean;
     pipelineStage: PipelineStage;
     // NOTE: `delivered` is intentionally NOT stored here. It's derived from
     // pipelineStage via isDelivered() so the two can never disagree.
@@ -42,6 +43,7 @@ interface ApiIdCard {
     card_serial_number: string;
     card_type: string;
     status: string;
+    has_photo?: boolean;
     issue_date: string | null;
     expiry_date: string | null;
     citizen?: {
@@ -85,6 +87,7 @@ function toNidCard(c: ApiIdCard): NidCard {
         address: cz?.birth_place?.province_name ?? '',
         expiresOn: c.expiry_date ?? '',
         status,
+        hasPhoto: Boolean(c.has_photo),
         // Live/issued cards are treated as already delivered; everything else
         // starts at the front of the pipeline.
         pipelineStage: status === 'Active' ? 'Delivered Station' : 'Pending Admin',
@@ -132,6 +135,7 @@ interface CreateForm {
     issueDate: string;
     expiryDate: string;
     biometricRef: string;
+    photo: File | null;
 }
 const emptyCreateForm: CreateForm = {
     citizen: null,
@@ -141,6 +145,7 @@ const emptyCreateForm: CreateForm = {
     issueDate: today(),
     expiryDate: tenYearsOut(),
     biometricRef: '',
+    photo: null,
 };
 
 function formatDate(iso: string): string {
@@ -166,8 +171,25 @@ export default function NationalIdCardPage() {
     const [tab, setTab] = useState<Tab>('inspect');
     const [flipped, setFlipped] = useState(false);
     const [createForm, setCreateForm] = useState<CreateForm>(emptyCreateForm);
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+    const [detailPhoto, setDetailPhoto] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
     const [registrarName, setRegistrarName] = useState('Registrar');
+
+    // Selected photo → local preview (revoke the previous object URL to avoid leaks).
+    function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0] ?? null;
+        setCreateForm((f) => ({ ...f, photo: file }));
+        setPhotoPreview((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            return file ? URL.createObjectURL(file) : null;
+        });
+    }
+
+    function resetCreateForm() {
+        setCreateForm(emptyCreateForm);
+        setPhotoPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+    }
 
     // Identify the authorizing registrar from the logged-in session. Set after
     // mount (localStorage is client-only) to avoid an SSR hydration mismatch.
@@ -201,6 +223,20 @@ export default function NationalIdCardPage() {
     }, []);
 
     const selected = panel.type === 'detail' ? cards.find((c) => c.id === panel.cardId) ?? null : null;
+
+    // Load the selected card's stored photo (auth-guarded blob → object URL).
+    useEffect(() => {
+        let active = true;
+        let created: string | null = null;
+        if (selected?.hasPhoto) {
+            fetchAuthedBlobUrl(`/id-cards/${selected.id}/photo`)
+                .then((url) => { if (active) { created = url; setDetailPhoto(url); } else URL.revokeObjectURL(url); })
+                .catch(() => { if (active) setDetailPhoto(null); });
+        } else {
+            setDetailPhoto(null);
+        }
+        return () => { active = false; if (created) URL.revokeObjectURL(created); };
+    }, [selected?.id, selected?.hasPhoto]);
 
     function selectCard(id: string) {
         setFlipped(false);
@@ -247,9 +283,20 @@ export default function NationalIdCardPage() {
                 expiry_date: createForm.expiryDate,
                 biometric_ref: createForm.biometricRef.trim() || null,
             });
+            // Attach the photo (if any) as a second step. A failed upload is
+            // non-fatal — the card is already issued.
+            if (createForm.photo) {
+                const fd = new FormData();
+                fd.append('photo', createForm.photo);
+                try {
+                    await api.post(`/id-cards/${created.data.id}/photo`, fd);
+                } catch {
+                    setActionError('Card issued, but the photo upload failed. You can retry from the card.');
+                }
+            }
             const list = await loadCards();
             const newId = String(created.data.id);
-            setCreateForm(emptyCreateForm);
+            resetCreateForm();
             if (list.find((c) => c.id === newId)) selectCard(newId);
             else setPanel({ type: 'empty' });
         } catch (err) {
@@ -344,7 +391,7 @@ export default function NationalIdCardPage() {
                     <div className="border-t border-slate-100 p-4">
                         <button
                             type="button"
-                            onClick={() => { setCreateForm(emptyCreateForm); setPanel({ type: 'create' }); }}
+                            onClick={() => { resetCreateForm(); setPanel({ type: 'create' }); }}
                             className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-purple-600 py-2.5 text-xs font-bold text-white hover:bg-purple-700"
                         >
                             <Plus className="h-3.5 w-3.5" />
@@ -459,6 +506,27 @@ export default function NationalIdCardPage() {
                             </div>
                         </div>
 
+                        <div className="mb-6">
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Card Holder Photo</label>
+                            <div className="flex items-center gap-4">
+                                <div className="flex h-24 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-100 text-slate-400">
+                                    {photoPreview ? (
+                                        <img src={photoPreview} alt="Selected" className="h-full w-full object-cover" />
+                                    ) : (
+                                        <UserRound className="h-8 w-8" />
+                                    )}
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                                        <ImagePlus className="h-3.5 w-3.5" />
+                                        {createForm.photo ? 'Change Photo' : 'Upload Photo'}
+                                        <input type="file" accept="image/*" onChange={onPhotoChange} className="hidden" />
+                                    </label>
+                                    <p className="text-[10px] text-slate-400">JPG or PNG, up to 4 MB. Optional.</p>
+                                </div>
+                            </div>
+                        </div>
+
                         <button
                             type="button"
                             onClick={handleIssueCard}
@@ -505,8 +573,12 @@ export default function NationalIdCardPage() {
                                         <span className="font-sans text-[9px] text-slate-400">{selected.cardNumber}</span>
                                     </div>
                                     <div className="flex gap-3">
-                                        <div className="flex h-20 w-16 shrink-0 items-center justify-center rounded bg-slate-200 text-slate-400">
-                                            <UserRound className="h-8 w-8" />
+                                        <div className="flex h-20 w-16 shrink-0 items-center justify-center overflow-hidden rounded bg-slate-200 text-slate-400">
+                                            {detailPhoto ? (
+                                                <img src={detailPhoto} alt="Card holder" className="h-full w-full object-cover" />
+                                            ) : (
+                                                <UserRound className="h-8 w-8" />
+                                            )}
                                         </div>
                                         <div className="flex-1 space-y-1 font-sans text-[10px] text-slate-700">
                                             <p><span className="font-semibold text-slate-500">Name:</span> {selected.nameKh || '—'} ({selected.nameEn})</p>

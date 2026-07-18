@@ -15,6 +15,7 @@ class BirthCertificateResource extends JsonResource
             'issue_date' => $this->issue_date?->toDateString(),
             'registered_date' => $this->registered_date?->toDateString(),
             'remarks' => $this->remarks,
+            'has_photo' => (bool) $this->photo_path,
             'citizen' => new CitizenResource($this->whenLoaded('citizen')),
             'mother' => new CitizenResource($this->whenLoaded('mother')),
             'father' => new CitizenResource($this->whenLoaded('father')),

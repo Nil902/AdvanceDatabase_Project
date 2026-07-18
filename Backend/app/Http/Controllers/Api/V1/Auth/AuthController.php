@@ -9,6 +9,7 @@ use App\Models\SystemUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
@@ -71,6 +72,34 @@ class AuthController extends Controller
         $user = $request->user()->load('role', 'officer', 'commune');
 
         return response()->json(new SystemUserResource($user));
+    }
+
+    // PUT /api/v1/auth/me — self-service profile update. Any authenticated user
+    // (admin or registrar) may edit their own name, contact details and password.
+    // Role, status and account ownership are intentionally NOT editable here —
+    // those stay admin-only via SystemUserController@update.
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $data = $request->validate([
+            'full_name_en' => 'sometimes|nullable|string|max:255',
+            'full_name_kh' => 'sometimes|nullable|string|max:255',
+            'email' => ['sometimes', 'nullable', 'email', 'max:255', Rule::unique('system_users', 'email')->ignore($user->user_id, 'user_id')],
+            'phone_number' => 'sometimes|nullable|string|max:30',
+            'password' => 'nullable|string|min:8',
+        ]);
+
+        $user->fill(collect($data)->except('password')->all());
+
+        if (! empty($data['password'])) {
+            $user->password_hash = Hash::make($data['password']);
+            $user->password_changed_at = now();
+        }
+
+        $user->save();
+
+        return response()->json(new SystemUserResource($user->load('role')));
     }
 
     private function abilitiesForRole(int $roleId): array

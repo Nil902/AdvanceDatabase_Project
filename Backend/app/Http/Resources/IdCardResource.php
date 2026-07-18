@@ -19,6 +19,7 @@ class IdCardResource extends JsonResource
             'marriage_cert_id' => $this->marriage_cert_id,
             'biometric_ref' => $this->biometric_ref,
             'replaces_card_id' => $this->replaces_card_id,
+            'has_photo' => (bool) $this->photo_path,
             'created_at' => $this->created_at?->toISOString(),
         ];
     }

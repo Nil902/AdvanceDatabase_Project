@@ -13,7 +13,7 @@ class IdentityCard extends Model
     protected $fillable = [
         'citizen_id', 'card_serial_number', 'card_type', 'status',
         'issue_date', 'expiry_date', 'marriage_cert_id', 'biometric_ref',
-        'issued_by', 'replaces_card_id',
+        'issued_by', 'replaces_card_id', 'photo_path',
     ];
 
     protected $casts = [

@@ -11,7 +11,7 @@ class BirthCertificate extends Model
     protected $fillable = [
         'citizen_id', 'mother_citizen_id', 'father_citizen_id',
         'certificate_number', 'issue_date', 'issued_by_officer_id',
-        'registered_date', 'status', 'remarks',
+        'registered_date', 'status', 'remarks', 'photo_path',
     ];
 
     protected $casts = [

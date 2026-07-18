@@ -8,6 +8,7 @@ import {
   UsersRound,
   LogOut,
   KeyRound,
+  UserCog,
 } from 'lucide-react';
 import { api, clearSession, getStoredUser } from '~/lib/api';
 import { AuthGuard } from '~/components/AuthGuard';
@@ -103,6 +104,17 @@ export default function RegistrarLayout() {
             <p className="text-[10px] text-slate-400">{currentRegistrar.role}</p>
             <p className="text-[10px] font-bold text-amber-400">{currentRegistrar.desk}</p>
           </div>
+          <NavLink
+            to="/registrar/profile"
+            className={({ isActive }) =>
+              `flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-[10px] font-bold transition ${
+                isActive ? 'bg-white/15 text-white' : 'bg-white/5 text-slate-200 hover:bg-white/10'
+              }`
+            }
+          >
+            <UserCog className="h-3 w-3" />
+            My Profile
+          </NavLink>
           <button
             type="button"
             onClick={handleLogout}

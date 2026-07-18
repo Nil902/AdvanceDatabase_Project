@@ -17,6 +17,7 @@ use App\Models\IdentityCard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -222,5 +223,36 @@ class IdCardController extends Controller
     private function generateSerialNumber(): string
     {
         return 'ID'.date('Ymd').strtoupper(bin2hex(random_bytes(4)));
+    }
+
+    // POST /id-cards/{id}/photo — attach/replace the card holder's photo.
+    // Stored on the persisted public disk; streamed back via photo() below.
+    public function uploadPhoto(Request $request, int $id)
+    {
+        $request->validate(['photo' => 'required|image|max:4096']);
+
+        $card = IdentityCard::findOrFail($id);
+
+        if ($card->photo_path) {
+            Storage::disk('public')->delete($card->photo_path);
+        }
+
+        $ext = $request->file('photo')->extension() ?: 'jpg';
+        $card->photo_path = $request->file('photo')->storeAs("id-cards/{$id}", "photo.{$ext}", 'public');
+        $card->save();
+
+        Cache::tags(['id_cards'])->flush();
+
+        return new IdCardResource($card->load('citizen'));
+    }
+
+    // GET /id-cards/{id}/photo — stream the stored photo (auth-guarded).
+    public function photo(int $id)
+    {
+        $card = IdentityCard::findOrFail($id);
+
+        abort_if(! $card->photo_path || ! Storage::disk('public')->exists($card->photo_path), 404, 'No photo on file.');
+
+        return Storage::disk('public')->response($card->photo_path);
     }
 }
