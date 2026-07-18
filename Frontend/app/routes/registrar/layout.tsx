@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router';
 import {
-  Search,
   FileBarChart2,
   FileHeart,
   IdCard,
@@ -12,6 +11,7 @@ import {
 } from 'lucide-react';
 import { api, clearSession, getStoredUser } from '~/lib/api';
 import { AuthGuard } from '~/components/AuthGuard';
+import { CitizenQuickLookup } from '~/components/CitizenQuickLookup';
 
 const NAV_ITEMS = [
   { to: '/registrar', label: 'Demographic Report', icon: FileBarChart2, color: 'text-blue-400' },
@@ -116,16 +116,9 @@ export default function RegistrarLayout() {
 
       {/* MAIN AREA */}
       <div className="pl-[200px] w-full">
-        {/* TOP SEARCH BAR */}
+        {/* TOP SEARCH BAR — functional global citizen lookup */}
         <div className="border-b border-slate-200 bg-white px-6 py-3">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search Registry name (KH/ENG) or ID Number"
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs text-slate-700 outline-none placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
-            />
-          </div>
+          <CitizenQuickLookup />
         </div>
 
         <main className="p-8">
