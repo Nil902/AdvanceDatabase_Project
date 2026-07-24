@@ -113,6 +113,7 @@ class AuthController extends Controller
             'id_card:create', 'id_card:read', 'id_card:update', 'id_card:dispatch',
             'household:create', 'household:read', 'household:update',
             'family:create', 'family:read', 'family:update',
+            'citizen:read', 'citizen:update',
             'reports:read',
         ];
 
@@ -121,7 +122,7 @@ class AuthController extends Controller
             2 => $portalAbilities,      // supervisor
             3 => $portalAbilities,      // registrar
             default => [                // viewer — read-only
-                'birth:read', 'id_card:read', 'household:read', 'family:read', 'reports:read',
+                'birth:read', 'id_card:read', 'household:read', 'family:read', 'citizen:read', 'reports:read',
             ],
         };
     }

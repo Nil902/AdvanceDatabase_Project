@@ -19,7 +19,13 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    // Restrict to the deployed frontend origin(s) in production via the
+    // CORS_ALLOWED_ORIGINS env var (comma-separated). Falls back to '*', which
+    // is safe here only because this is a stateless bearer-token API
+    // (supports_credentials is false — no cookies are exposed cross-origin).
+    'allowed_origins' => array_filter(
+        explode(',', env('CORS_ALLOWED_ORIGINS', '*'))
+    ),
 
     'allowed_origins_patterns' => [],
 

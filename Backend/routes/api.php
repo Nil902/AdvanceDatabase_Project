@@ -75,11 +75,16 @@ Route::prefix('v1')->group(function () {
         Route::get('geo/villages', [GeoController::class, 'villages']);
 
         // ── Citizens ──────────────────────────────────────────────────────
-        Route::get('citizens/search', [CitizenController::class, 'search']);
-        Route::put('citizens/{id}', [CitizenController::class, 'update']);
-        Route::post('citizens/{id}/photo', [CitizenController::class, 'uploadPhoto']);
-        Route::post('citizens/{id}/fingerprint', [CitizenController::class, 'uploadFingerprint']);
-        Route::post('citizens/{id}/assign-nid', [CitizenController::class, 'assignNid']);
+        Route::get('citizens/search', [CitizenController::class, 'search'])
+            ->middleware('ability:citizen:read');
+        Route::put('citizens/{id}', [CitizenController::class, 'update'])
+            ->middleware('ability:citizen:update');
+        Route::post('citizens/{id}/photo', [CitizenController::class, 'uploadPhoto'])
+            ->middleware('ability:citizen:update');
+        Route::post('citizens/{id}/fingerprint', [CitizenController::class, 'uploadFingerprint'])
+            ->middleware('ability:citizen:update');
+        Route::post('citizens/{id}/assign-nid', [CitizenController::class, 'assignNid'])
+            ->middleware('ability:citizen:update');
 
         // ── ID Cards ─────────────────────────────────────────────────────
         Route::get('id-cards/search', [IdCardController::class, 'search'])

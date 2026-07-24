@@ -17,9 +17,9 @@ import type { BreakdownEntry, ModuleKey } from '../types';
 
 // ---------------------------------------------------------------------------
 // OVERVIEW DATA
-// TODO: replace this whole block with a single lightweight aggregate call —
-// GET /api/v1/overview — returning pre-computed counts. Do NOT fetch every
-// module's full record list on the home screen just to call .length on it.
+// Backed by a single aggregate call — GET /api/v1/reports/summary — which
+// returns pre-computed counts (cached server-side). We never fetch full record
+// lists on the home screen just to count them.
 // ---------------------------------------------------------------------------
 interface OverviewSummary {
   birth: { total: number; registered: number; missingCert: number };
@@ -170,7 +170,7 @@ export function OverviewTab({ onNavigate }: { onNavigate: (module: ModuleKey) =>
 
       {/* KPI ROW */}
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard icon={Users} tileBg="bg-blue-50" tileText="text-blue-600" label="Registered Citizens" value={summary.birth.total.toLocaleString()} hint="+18 this week" hintIcon={TrendingUp} />
+        <KpiCard icon={Users} tileBg="bg-blue-50" tileText="text-blue-600" label="Registered Citizens" value={summary.residency.residents.toLocaleString()} hint="Total on record" hintIcon={TrendingUp} />
         <KpiCard icon={CreditCard} tileBg="bg-purple-50" tileText="text-purple-600" label="Smart NID Cards Issued" value={summary.nid.total.toLocaleString()} hint={`${summary.nid.active.toLocaleString()} active`} hintIcon={ShieldCheck} />
         <KpiCard icon={BookOpen} tileBg="bg-amber-50" tileText="text-amber-600" label="Household Residency Books" value={summary.residency.books.toLocaleString()} hint={`${summary.residency.residents.toLocaleString()} residents`} hintIcon={MapPin} />
         <KpiCard icon={AlertTriangle} tileBg="bg-rose-50" tileText="text-rose-600" label="Pending Actions" value={pendingActions.toLocaleString()} hint="Needs attention" hintIcon={Clock} />
@@ -222,6 +222,12 @@ export function OverviewTab({ onNavigate }: { onNavigate: (module: ModuleKey) =>
             <span className="text-[11px] text-slate-400">Last 24 hours</span>
           </div>
           <div className="divide-y divide-slate-100">
+            {recentActivity.length === 0 && (
+              <div className="flex flex-col items-center justify-center gap-2 px-6 py-12 text-center">
+                <Clock className="h-6 w-6 text-slate-300" />
+                <p className="text-xs font-medium text-slate-400">No registry activity in the last 24 hours.</p>
+              </div>
+            )}
             {recentActivity.map((item) => {
               const meta = moduleMeta[item.module];
               const Icon = meta.icon;

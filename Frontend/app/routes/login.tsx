@@ -188,7 +188,7 @@ export default function LoginPage() {
 
         <div className="text-center text-xs text-slate-500">
           <p>National Identity Management System</p>
-          <p className="mt-1">&copy; 2024 National Identity Management Authority. All Rights Reserved.</p>
+          <p className="mt-1">&copy; {new Date().getFullYear()} National Identity Management Authority. All Rights Reserved.</p>
         </div>
       </div>
     </div>
