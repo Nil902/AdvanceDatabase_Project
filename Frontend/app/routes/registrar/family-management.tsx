@@ -92,10 +92,10 @@ export default function FamilyManagementPage() {
   const [families, setFamilies] = useState<FamilyUnit[]>([]);
   const [panel, setPanel] = useState<Panel>({ type: 'empty' });
   const [searchTerm, setSearchTerm] = useState('');
-  const [searching, setSearching] = useState(false);
+  const [searching, setSearching] = useState(true);
   const [showDeleteToast, setShowDeleteToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // --- Create family state ---
   const [headCitizen, setHeadCitizen] = useState<CitizenOption | null>(null);
@@ -107,33 +107,31 @@ export default function FamilyManagementPage() {
   const [memberRelationship, setMemberRelationship] = useState('Spouse');
   const [addMemberLoading, setAddMemberLoading] = useState(false);
 
-  // Search families from the API
+  // Load families from the API. With no query the endpoint returns the first
+  // page of all families, so the list is populated on mount (not blank until
+  // the user searches). A 2+ char query narrows by code / head name / NID.
   const searchFamilies = useCallback(async (query: string) => {
-    if (query.trim().length < 2) {
-      setFamilies([]);
-      return;
-    }
     setSearching(true);
     try {
-      const res = await api.get<{ data: any[] }>('/families/search', { query });
+      const res = await api.get<{ data: any[] }>('/families/search', { query, per_page: 100 });
       setFamilies((res.data ?? []).map(mapApiFamily));
     } catch (err) {
-      console.error('Failed to search families:', err);
+      console.error('Failed to load families:', err);
       setFamilies([]);
     } finally {
       setSearching(false);
+      setLoading(false);
     }
   }, []);
 
-  // Debounced search on searchTerm change
+  // Loads the list on mount (blank term = full list) and debounces re-queries
+  // as the search term changes. A single-char term is ignored (wait for 2+).
   useEffect(() => {
-    if (searchTerm.trim().length < 2) {
-      setFamilies([]);
-      return;
-    }
+    const q = searchTerm.trim();
+    if (q.length === 1) return;
     const timeout = setTimeout(() => {
-      searchFamilies(searchTerm);
-    }, 300);
+      searchFamilies(q);
+    }, searchTerm ? 300 : 0);
     return () => clearTimeout(timeout);
   }, [searchTerm, searchFamilies]);
 
@@ -274,11 +272,15 @@ export default function FamilyManagementPage() {
           </div>
 
           <div className="max-h-[520px] overflow-y-auto divide-y divide-slate-100">
-            {searchTerm.trim().length < 2 && (
-              <p className="p-6 text-center text-xs text-slate-400">Type at least 2 characters to search families.</p>
+            {searching && families.length === 0 && (
+              <p className="flex items-center justify-center gap-2 p-6 text-xs text-slate-400">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading families…
+              </p>
             )}
-            {searchTerm.trim().length >= 2 && !searching && families.length === 0 && (
-              <p className="p-6 text-center text-xs text-slate-400">No matching families.</p>
+            {!searching && families.length === 0 && (
+              <p className="p-6 text-center text-xs text-slate-400">
+                {searchTerm.trim() ? 'No matching families.' : 'No families registered yet.'}
+              </p>
             )}
             {families.map((family) => (
               <button

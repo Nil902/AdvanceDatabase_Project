@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Citizen\AssignNidRequest;
 use App\Http\Requests\Citizen\FingerprintUploadRequest;
 use App\Http\Requests\Citizen\PhotoUploadRequest;
+use App\Http\Requests\Citizen\StoreCitizenRequest;
 use App\Http\Requests\Citizen\UpdateCitizenRequest;
 use App\Http\Resources\CitizenResource;
 use App\Models\Citizen;
@@ -38,6 +39,15 @@ class CitizenController extends Controller
             ->get();
 
         return CitizenResource::collection($citizens);
+    }
+
+    // POST /citizens — register a new person (e.g. a newborn during birth
+    // registration). Returns the created citizen so the caller can link it.
+    public function store(StoreCitizenRequest $request)
+    {
+        $citizen = $this->citizenService->create($request->validated());
+
+        return (new CitizenResource($citizen))->response()->setStatusCode(201);
     }
 
     public function update(UpdateCitizenRequest $request, int $id)

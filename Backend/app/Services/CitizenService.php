@@ -9,6 +9,14 @@ use Illuminate\Support\Facades\Cache;
 
 class CitizenService
 {
+    public function create(array $data): Citizen
+    {
+        $citizen = Citizen::create($data);
+        Cache::tags(['citizens'])->flush();
+
+        return $citizen;
+    }
+
     public function findById(int $id): Citizen
     {
         return Cache::tags(['citizens'])->remember(

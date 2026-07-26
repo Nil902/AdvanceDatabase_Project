@@ -110,10 +110,11 @@ class AuthController extends Controller
         // removal / address changes).
         $portalAbilities = [
             'birth:create', 'birth:read', 'birth:update', 'birth:delete', 'birth:verify', 'birth:print',
-            'id_card:create', 'id_card:read', 'id_card:update', 'id_card:dispatch',
+            'id_card:create', 'id_card:read', 'id_card:update', 'id_card:update_status', 'id_card:dispatch',
             'household:create', 'household:read', 'household:update',
-            'family:create', 'family:read', 'family:update',
-            'citizen:read', 'citizen:update',
+            'household:add_member', 'household:change_head', 'household:transfer', 'household:update_address',
+            'family:create', 'family:read', 'family:update', 'family:add_member',
+            'citizen:create', 'citizen:read', 'citizen:update',
             'reports:read',
         ];
 

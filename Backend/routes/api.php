@@ -77,6 +77,8 @@ Route::prefix('v1')->group(function () {
         // ── Citizens ──────────────────────────────────────────────────────
         Route::get('citizens/search', [CitizenController::class, 'search'])
             ->middleware('ability:citizen:read');
+        Route::post('citizens', [CitizenController::class, 'store'])
+            ->middleware('ability:citizen:create');
         Route::put('citizens/{id}', [CitizenController::class, 'update'])
             ->middleware('ability:citizen:update');
         Route::post('citizens/{id}/photo', [CitizenController::class, 'uploadPhoto'])

@@ -98,9 +98,12 @@ export default function BirthCertificatePage() {
   const [showReport, setShowReport] = useState(false);
   const [showDownloadToast, setShowDownloadToast] = useState(false);
 
-  // Register-certificate form: the child + parents are resolved to existing
-  // citizens (POST /birth-certificates links a citizen_id, it does not create one).
-  const [formChild, setFormChild] = useState<CitizenOption | null>(null);
+  // Register-certificate form: the child (newborn) is typed in directly and
+  // created as a citizen on submit; the parents are resolved to existing citizens.
+  const [formChildKh, setFormChildKh] = useState('');
+  const [formChildEn, setFormChildEn] = useState('');
+  const [formChildGender, setFormChildGender] = useState<'M' | 'F'>('M');
+  const [formChildDob, setFormChildDob] = useState('');
   const [formMother, setFormMother] = useState<CitizenOption | null>(null);
   const [formFather, setFormFather] = useState<CitizenOption | null>(null);
   const [formCertNumber, setFormCertNumber] = useState('');
@@ -191,7 +194,10 @@ export default function BirthCertificatePage() {
   };
 
   const handleOpenRegisterForm = () => {
-    setFormChild(null);
+    setFormChildKh('');
+    setFormChildEn('');
+    setFormChildGender('M');
+    setFormChildDob('');
     setFormMother(null);
     setFormFather(null);
     setFormCertNumber(`BC-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000 + 1000)}`);
@@ -201,12 +207,17 @@ export default function BirthCertificatePage() {
     setShowRegisterForm(true);
   };
 
-  // POST /birth-certificates — link an existing citizen (child) + optional parents.
+  // Registers a newborn: POST /citizens (create the child) → POST
+  // /birth-certificates linking that new citizen + optional existing parents.
   const handleFinalizeRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionError(null);
-    if (!formChild) {
-      setActionError('Select the child — a registered citizen.');
+    if (!formChildKh.trim()) {
+      setActionError("Enter the child's name (Khmer).");
+      return;
+    }
+    if (!formChildDob) {
+      setActionError("Enter the child's date of birth.");
       return;
     }
     if (!formCertNumber.trim()) {
@@ -215,8 +226,15 @@ export default function BirthCertificatePage() {
     }
     setBusy(true);
     try {
+      const childRes = await api.post<{ data: { id: number } }>('/citizens', {
+        full_name_kh: formChildKh.trim(),
+        full_name_en: formChildEn.trim() || null,
+        gender: formChildGender,
+        date_of_birth: formChildDob,
+        nationality: 'Cambodian',
+      });
       const created = await api.post<{ data: ApiBirthCertificate }>('/birth-certificates', {
-        citizen_id: formChild.id,
+        citizen_id: childRes.data.id,
         mother_citizen_id: formMother?.id ?? null,
         father_citizen_id: formFather?.id ?? null,
         certificate_number: formCertNumber.trim(),
@@ -353,14 +371,50 @@ export default function BirthCertificatePage() {
               )}
 
               <form onSubmit={handleFinalizeRegistration} className="space-y-4">
-                <Field label="Child (registered citizen)" required>
-                  <CitizenSearch
-                    placeholder="Search citizen by name (KH/ENG) or NID"
-                    selected={formChild}
-                    onSelect={setFormChild}
-                    ringClass="focus:ring-blue-400"
-                  />
-                </Field>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Child's Name (Khmer)" required>
+                    <input
+                      type="text"
+                      required
+                      value={formChildKh}
+                      onChange={(e) => setFormChildKh(e.target.value)}
+                      placeholder="ឈ្មោះកុមារ (ខ្មែរ)"
+                      className="input-field"
+                    />
+                  </Field>
+                  <Field label="Child's Name (English)">
+                    <input
+                      type="text"
+                      value={formChildEn}
+                      onChange={(e) => setFormChildEn(e.target.value)}
+                      placeholder="Child name (English)"
+                      className="input-field"
+                    />
+                  </Field>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Gender" required>
+                    <select
+                      value={formChildGender}
+                      onChange={(e) => setFormChildGender(e.target.value as 'M' | 'F')}
+                      className="input-field"
+                    >
+                      <option value="M">Male</option>
+                      <option value="F">Female</option>
+                    </select>
+                  </Field>
+                  <Field label="Date of Birth" required>
+                    <input
+                      type="date"
+                      required
+                      max={todayStr}
+                      value={formChildDob}
+                      onChange={(e) => setFormChildDob(e.target.value)}
+                      className="input-field"
+                    />
+                  </Field>
+                </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Mother (optional)">
@@ -433,7 +487,7 @@ export default function BirthCertificatePage() {
 
                 <button
                   type="submit"
-                  disabled={busy || !formChild}
+                  disabled={busy || !formChildKh.trim() || !formChildDob}
                   className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 py-2.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-60"
                 >
                   {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
