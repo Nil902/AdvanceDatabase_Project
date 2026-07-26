@@ -22,6 +22,19 @@ class FamilyController extends Controller
     {
         $family = $this->familyService->create($request->validated());
 
+        return new FamilyResource($family->load('headCitizen'));
+    }
+
+    // GET /families/{id} — a single family with its head and members (each member
+    // resolved to a citizen + relationship label). Backs the detail panel.
+    public function show(int $id)
+    {
+        $family = FamilyUnit::with([
+            'headCitizen',
+            'members.citizenB',
+            'members.relationshipType',
+        ])->withCount('members')->findOrFail($id);
+
         return new FamilyResource($family);
     }
 
@@ -46,6 +59,7 @@ class FamilyController extends Controller
                 });
             })
             ->with(['headCitizen'])
+            ->withCount('members')
             ->paginate($request->input('per_page', 20));
 
         return FamilyResource::collection($families);

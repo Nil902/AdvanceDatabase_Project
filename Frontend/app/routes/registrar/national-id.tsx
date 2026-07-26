@@ -101,7 +101,6 @@ interface StoredUser {
     username: string;
 }
 
-type Tab = 'inspect' | 'issues';
 type Panel = { type: 'empty' } | { type: 'create' } | { type: 'detail'; cardId: string };
 
 // StoreIdCardRequest accepts these card_type / status values.
@@ -168,7 +167,6 @@ export default function NationalIdCardPage() {
     const [error, setError] = useState<string | null>(null);
     const [actionError, setActionError] = useState<string | null>(null);
     const [panel, setPanel] = useState<Panel>({ type: 'empty' });
-    const [tab, setTab] = useState<Tab>('inspect');
     const [flipped, setFlipped] = useState(false);
     const [createForm, setCreateForm] = useState<CreateForm>(emptyCreateForm);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -325,26 +323,7 @@ export default function NationalIdCardPage() {
             </span>
                     </div>
 
-                    <div className="flex border-b border-slate-100">
-                        <button
-                            type="button"
-                            onClick={() => setTab('inspect')}
-                            className={`flex-1 py-3 text-sm font-bold ${tab === 'inspect' ? 'bg-white text-purple-700' : 'bg-slate-50 text-slate-400'}`}
-                        >
-                            Inspect NID
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setTab('issues')}
-                            className={`flex-1 py-3 text-sm font-bold ${tab === 'issues' ? 'bg-white text-purple-700' : 'bg-slate-50 text-slate-400'}`}
-                        >
-                            Issues/Replace
-                        </button>
-                    </div>
-
-                    {tab === 'issues' ? (
-                        <div className="p-6 text-xs text-slate-400">Issues/Replace workflow — not built yet.</div>
-                    ) : loading ? (
+                    {loading ? (
                         <div className="flex items-center justify-center gap-2 p-6 text-xs text-slate-400">
                             <Loader2 className="h-4 w-4 animate-spin" /> Loading smart NID cards…
                         </div>

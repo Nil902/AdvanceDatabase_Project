@@ -4,7 +4,6 @@ import {
   Users,
   User,
   FileSpreadsheet,
-  Lock,
   LogOut,
   Gauge,
 } from 'lucide-react';
@@ -18,7 +17,6 @@ const NAV_ITEMS: { key: DashboardTab; label: string; icon: React.ElementType }[]
   { key: 'performance', label: 'Performance', icon: Gauge },
   { key: 'profile', label: 'Profile', icon: User },
   { key: 'audit', label: 'Audit Logs', icon: FileSpreadsheet },
-  { key: 'security', label: 'Security Settings', icon: Lock },
 ];
 
 // The persistent shell: fixed sidebar navigation on the left, the active

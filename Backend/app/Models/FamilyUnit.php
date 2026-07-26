@@ -16,4 +16,11 @@ class FamilyUnit extends Model
     {
         return $this->belongsTo(Citizen::class, 'head_citizen_id', 'citizen_id');
     }
+
+    // Family members are modelled as citizen_relationships anchored on the head
+    // (citizen_id_a = head, citizen_id_b = the member). See FamilyService.
+    public function members()
+    {
+        return $this->hasMany(CitizenRelationship::class, 'citizen_id_a', 'head_citizen_id');
+    }
 }

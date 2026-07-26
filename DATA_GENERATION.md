@@ -53,6 +53,8 @@ With defaults (`--citizens=100000`):
 | `identity_cards` | 50,000 | `--card-rate=0.5`, 10-year validity |
 | `households` | 20,000 | random village + citizen head |
 | `household_members` | ~60,000 | head + 0–4 members each |
+| `family_units` | 0 (opt-in) | `--families=N` — distinct citizen head + unique `family_code` |
+| `citizen_relationships` | ~N×3 | 1–5 members per family (head → member links) |
 
 ### MongoDB (`civil_registry_docs`)
 
@@ -77,6 +79,10 @@ docker compose -f docker-compose.prod.yml exec app php artisan data:generate
 # Custom volume
 docker compose -f docker-compose.prod.yml exec app php artisan data:generate --citizens=250000
 
+# Add ~150k family units (+ their members) on top of the existing citizens,
+# without creating new citizens or Mongo docs:
+docker compose -f docker-compose.prod.yml exec app php artisan data:generate --citizens=0 --families=150000 --mongo=0
+
 # Skip MongoDB
 docker compose -f docker-compose.prod.yml exec app php artisan data:generate --mongo=0
 
@@ -98,6 +104,7 @@ cd Backend && php artisan data:generate
 | `--birth-rate=F` | 0.6 | fraction with a birth certificate |
 | `--card-rate=F` | 0.5 | fraction with an ID card |
 | `--households=N` | 20000 | number of households |
+| `--families=N` | 0 | family units to create (heads/members drawn from existing citizens; capped at population size) |
 | `--mongo=1\|0` | 1 | also generate MongoDB documents |
 | `--fresh` | off | `TRUNCATE ... RESTART IDENTITY CASCADE` the generated tables first |
 

@@ -19,11 +19,12 @@ export default function ResetPasswordPage() {
   const email = location.state?.email || "";
   const otp = location.state?.otp || "";
 
-  // Password Complexity Evaluation Flags
-  const isLongEnough = password.length >= 12;
+  // Password rules. Only the length is enforced by the backend (min:8) — the
+  // rest are advisory strength hints and don't block submission, so the UI
+  // never demands more than the API accepts.
+  const isLongEnough = password.length >= 8;
   const hasMixedCase = /[a-z]/.test(password) && /[A-Z]/.test(password);
   const hasNumAndSpecial = /[0-9]/.test(password) && /[^A-Za-z0-9]/.test(password);
-  const meetsAllCriteria = isLongEnough && hasMixedCase && hasNumAndSpecial;
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -41,8 +42,8 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    if (!meetsAllCriteria) {
-      setError("Your proposed password does not satisfy NIMS security complexity profiles.");
+    if (!isLongEnough) {
+      setError("Your password must be at least 8 characters long.");
       return;
     }
 
@@ -237,7 +238,7 @@ export default function ResetPasswordPage() {
                       <XCircle className="h-4 w-4 text-red-500 shrink-0" />
                     )}
                     <span className={isLongEnough ? 'text-slate-700 font-medium' : 'text-slate-400'}>
-                      At least 12 characters long
+                      At least 8 characters long (required)
                     </span>
                   </div>
 
@@ -248,7 +249,7 @@ export default function ResetPasswordPage() {
                       <XCircle className="h-4 w-4 text-red-500 shrink-0" />
                     )}
                     <span className={hasMixedCase ? 'text-slate-700 font-medium' : 'text-slate-400'}>
-                      Upper & lowercase letters
+                      Upper & lowercase letters (recommended)
                     </span>
                   </div>
 
@@ -259,14 +260,14 @@ export default function ResetPasswordPage() {
                       <XCircle className="h-4 w-4 text-red-500 shrink-0" />
                     )}
                     <span className={hasNumAndSpecial ? 'text-slate-700 font-medium' : 'text-slate-400'}>
-                      Includes numbers & special characters
+                      Includes numbers & special characters (recommended)
                     </span>
                   </div>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={isLoading || success !== null || !meetsAllCriteria}
+                  disabled={isLoading || success !== null || !isLongEnough}
                   className="flex w-full items-center justify-center gap-2 rounded-lg bg-slate-950 py-3 text-sm font-semibold text-white shadow transition hover:bg-slate-900 active:bg-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isLoading ? (

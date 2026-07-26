@@ -51,7 +51,7 @@ class AuthController extends Controller
         );
 
         return response()->json([
-            'user' => new SystemUserResource($user->load('role')),
+            'user' => new SystemUserResource($user->load('role', 'officer')),
             'token' => $plainToken,
             'token_type' => 'Bearer',
         ]);

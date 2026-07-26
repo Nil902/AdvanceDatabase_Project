@@ -229,9 +229,11 @@ export default function DemographicReportPage() {
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col items-center">
           <h2 className="text-sm font-bold text-slate-900 self-start mb-6">Gender Distribution</h2>
           <div className="relative h-36 w-36 rounded-full" style={donutStyle}>
-            <div className="absolute inset-3 rounded-full bg-white flex flex-col items-center justify-center">
+            <div className="absolute inset-3 flex flex-col items-center justify-center overflow-hidden rounded-full bg-white px-2 text-center leading-tight">
               <span className="text-[9px] font-bold tracking-widest text-slate-400">SEX SPLIT</span>
-              <span className="text-sm font-bold text-slate-900">{genderSplit.male}M : {genderSplit.female}F</span>
+              <span className="text-xs font-bold text-blue-600">{genderSplit.male.toLocaleString()}M</span>
+              <span className="text-[9px] font-semibold text-slate-300">/</span>
+              <span className="text-xs font-bold text-pink-600">{genderSplit.female.toLocaleString()}F</span>
             </div>
           </div>
           <div className="flex gap-5 mt-6 text-xs">

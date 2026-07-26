@@ -137,10 +137,10 @@ export default function FamilyManagementPage() {
     return () => clearTimeout(timeout);
   }, [searchTerm, searchFamilies]);
 
-  // Fetch a single family's full details (with tree)
+  // Fetch a single family's full details (head + members)
   const fetchFamilyDetail = async (id: string) => {
     try {
-      const res = await api.get<{ data: any }>(`/families/${id}/tree`);
+      const res = await api.get<{ data: any }>(`/families/${id}`);
       const mapped = mapApiFamily(res.data ?? res);
       setFamilies((prev) => {
         const idx = prev.findIndex((f) => f.id === id);

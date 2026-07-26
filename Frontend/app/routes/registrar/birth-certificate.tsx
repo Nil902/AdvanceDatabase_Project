@@ -78,11 +78,14 @@ function toBirthRecord(c: ApiBirthCertificate): BirthRecord {
   };
 }
 
-// Logged-in user stored at login (SystemUserResource).
+// Logged-in user stored at login (SystemUserResource). `officer` is present when
+// the account is linked to a registration officer — used to stamp the issuing
+// officer on new certificates (issued_by_officer_id).
 interface StoredUser {
   full_name_en: string | null;
   full_name_kh: string | null;
   username: string;
+  officer?: { officer_id: number; officer_name: string | null } | null;
 }
 
 export default function BirthCertificatePage() {
@@ -111,6 +114,7 @@ export default function BirthCertificatePage() {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [registrarName, setRegistrarName] = useState('Registrar');
+  const [officerId, setOfficerId] = useState<number | null>(null);
 
   // Selected scan → local preview (revoke previous object URL to avoid leaks).
   function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -154,7 +158,10 @@ export default function BirthCertificatePage() {
   // Registrar identity from the logged-in session (client-only; set post-mount).
   useEffect(() => {
     const u = getStoredUser<StoredUser>();
-    if (u) setRegistrarName(u.full_name_en || u.full_name_kh || u.username || 'Registrar');
+    if (u) {
+      setRegistrarName(u.full_name_en || u.full_name_kh || u.username || 'Registrar');
+      setOfficerId(u.officer?.officer_id ?? null);
+    }
   }, []);
 
   const filteredRecords = records.filter((r) =>
@@ -215,6 +222,7 @@ export default function BirthCertificatePage() {
         certificate_number: formCertNumber.trim(),
         issue_date: formIssueDate || null,
         registered_date: formRegisteredDate || null,
+        issued_by_officer_id: officerId,
         remarks: formRemarks.trim() || null,
       });
       // Attach the scan (if any) as a second step; a failed upload is non-fatal.

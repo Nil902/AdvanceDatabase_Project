@@ -9,7 +9,6 @@ import { UserManagementTab, useUsers } from './components/UserManagementTab';
 import { PerformanceTab } from './components/PerformanceTab';
 import { ProfileSettingsTab, useProfileForm } from './components/ProfileSettingsTab';
 import { AuditLogsTab } from './components/AuditLogsTab';
-import { SecuritySettingsTab, useSecuritySettings } from './components/SecuritySettingsTab';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -17,7 +16,6 @@ export default function DashboardPage() {
 
   const profile = useProfileForm();
   const users = useUsers();
-  const security = useSecuritySettings();
 
   const goToModule = (module: ModuleKey) => navigate(`/registrar/${registrarPath[module]}`);
 
@@ -34,7 +32,6 @@ export default function DashboardPage() {
         {currentTab === 'performance' && <PerformanceTab />}
         {currentTab === 'profile' && <ProfileSettingsTab profile={profile} />}
         {currentTab === 'audit' && <AuditLogsTab />}
-        {currentTab === 'security' && <SecuritySettingsTab security={security} />}
       </DashboardLayout>
     </AuthGuard>
   );

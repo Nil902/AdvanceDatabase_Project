@@ -26,6 +26,7 @@ class GenerateSampleData extends Command
         {--birth-rate=0.6 : Fraction of citizens that get a birth certificate}
         {--card-rate=0.5 : Fraction of adult citizens that get an ID card}
         {--households=20000 : Number of households to create}
+        {--families=0 : Number of family units to create (uses existing citizens as heads + members)}
         {--mongo=1 : Also generate MongoDB documents (1/0)}
         {--fresh : Truncate the generated tables before inserting}';
 
@@ -50,7 +51,7 @@ class GenerateSampleData extends Command
 
         if ($this->option('fresh')) {
             $this->warn('Truncating generated tables…');
-            DB::statement('TRUNCATE household_members, households, identity_cards, birth_certificates, citizens RESTART IDENTITY CASCADE');
+            DB::statement('TRUNCATE citizen_relationships, family_units, household_members, households, identity_cards, birth_certificates, citizens RESTART IDENTITY CASCADE');
         }
 
         $villageIds = DB::table('villages')->pluck('village_id')->all();
@@ -171,7 +172,13 @@ class GenerateSampleData extends Command
             DB::table('household_members')->insert($memberRows);
         }
 
-        // ── 5. MongoDB documents ─────────────────────────────────────────
+        // ── 5. Family units + relationships ──────────────────────────────
+        $familyN = (int) $this->option('families');
+        if ($familyN > 0) {
+            $this->generateFamilies($familyN, $run);
+        }
+
+        // ── 6. MongoDB documents ─────────────────────────────────────────
         if ((int) $this->option('mongo')) {
             $this->generateMongo($citizenIds, $run);
         }
@@ -180,6 +187,82 @@ class GenerateSampleData extends Command
         $this->info('✅ Sample data generation complete.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Family units + their members (stored as citizen_relationships anchored on
+     * the head: citizen_id_a = head, citizen_id_b = member). Draws heads and
+     * members from the *existing* citizen population, so families can be added on
+     * top of an already-seeded dataset. Each family gets a distinct head so the
+     * FamilyUnit::members() relation never bleeds across units.
+     */
+    private function generateFamilies(int $familyN, string $run): void
+    {
+        // Member link types — exclude 'Head' (that's the anchor, not a member).
+        $relTypeIds = DB::table('relationship_types')->where('label', '!=', 'Head')->pluck('rel_type_id')->all();
+        if (empty($relTypeIds)) {
+            $this->warn('No relationship_types found — run `php artisan db:seed` first. Skipping families.');
+
+            return;
+        }
+        $relCount = count($relTypeIds);
+
+        // Pool of real citizens to use as heads/members.
+        $pool = DB::table('citizens')->pluck('citizen_id')->all();
+        $poolCount = count($pool);
+        if ($poolCount === 0) {
+            $this->warn('No citizens found — generate citizens first. Skipping families.');
+
+            return;
+        }
+
+        // Every family needs a distinct head, so cap at the population size.
+        $familyN = min($familyN, $poolCount);
+        if ($familyN < (int) $this->option('families')) {
+            $this->warn("Only {$poolCount} citizens available — capping families at {$familyN}.");
+        }
+
+        $heads = $pool;
+        shuffle($heads);
+        $heads = array_slice($heads, 0, $familyN);
+
+        $this->info("Generating {$familyN} family units…");
+        $this->bulkInsert('family_units', $familyN, fn ($i) => [
+            'family_code' => "FAM-{$run}-{$i}",
+            'head_citizen_id' => $heads[$i],
+            'created_at' => now(),
+        ]);
+
+        // 1–5 members per family.
+        $this->info('Generating family members (citizen_relationships)…');
+        $bar = $this->output->createProgressBar($familyN);
+        $rows = [];
+        foreach ($heads as $headId) {
+            $members = random_int(1, 5);
+            for ($m = 0; $m < $members; $m++) {
+                $memberId = $pool[random_int(0, $poolCount - 1)];
+                if ($memberId === $headId) {
+                    continue; // never link a head to itself
+                }
+                $rows[] = [
+                    'citizen_id_a' => $headId,
+                    'citizen_id_b' => $memberId,
+                    'rel_type_id' => $relTypeIds[random_int(0, $relCount - 1)],
+                    'verified' => (bool) random_int(0, 1),
+                    'created_at' => now(),
+                ];
+            }
+            if (count($rows) >= self::CHUNK) {
+                DB::table('citizen_relationships')->insert($rows);
+                $rows = [];
+            }
+            $bar->advance();
+        }
+        if ($rows) {
+            DB::table('citizen_relationships')->insert($rows);
+        }
+        $bar->finish();
+        $this->newLine();
     }
 
     /**

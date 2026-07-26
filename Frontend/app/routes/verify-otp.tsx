@@ -6,7 +6,7 @@ import { api } from '../lib/api';
 
 export default function VerifyOtpPage() {
   const [otp, setOtp] = useState<string[]>(new Array(6).fill(''));
-  const [timeLeft, setTimeLeft] = useState<number>(268); 
+  const [timeLeft, setTimeLeft] = useState<number>(600); // matches backend OTP validity (10 min)
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isResending, setIsResending] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -126,7 +126,7 @@ export default function VerifyOtpPage() {
       await api.post('/forgot-password', { email: rawEmail });
       setSuccess('A brand-new verification token was issued to your email.');
       setOtp(new Array(6).fill(''));
-      setTimeLeft(268);
+      setTimeLeft(600);
     } catch (err: any) {
       setError(err.message || 'Failed to dispatch resend request.');
     } finally {
