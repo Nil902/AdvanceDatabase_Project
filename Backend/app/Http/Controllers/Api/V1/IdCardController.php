@@ -47,7 +47,11 @@ class IdCardController extends Controller
     public function store(StoreIdCardRequest $request)
     {
         $card = DB::transaction(function () use ($request) {
-            $card = IdentityCard::create($request->validated());
+            $card = IdentityCard::create($request->validated() + [
+                // Serial is allocated by the registry, not the client; record who issued it.
+                'card_serial_number' => $this->generateSerialNumber(),
+                'issued_by' => $request->user()->user_id,
+            ]);
 
             CardRequest::create([
                 'citizen_id' => $card->citizen_id,
@@ -227,7 +231,12 @@ class IdCardController extends Controller
 
     private function generateSerialNumber(): string
     {
-        return 'ID'.date('Ymd').strtoupper(bin2hex(random_bytes(4)));
+        // Registry-controlled serial; retry on the (rare) unique collision.
+        do {
+            $serial = 'ID'.date('Ymd').strtoupper(bin2hex(random_bytes(5)));
+        } while (IdentityCard::where('card_serial_number', $serial)->exists());
+
+        return $serial;
     }
 
     // POST /id-cards/{id}/photo — attach/replace the card holder's photo.

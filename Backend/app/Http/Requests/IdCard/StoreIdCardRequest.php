@@ -15,7 +15,8 @@ class StoreIdCardRequest extends FormRequest
     {
         return [
             'citizen_id' => 'required|integer|exists:citizens,citizen_id',
-            'card_serial_number' => 'required|string|max:100|unique:identity_cards,card_serial_number',
+            // card_serial_number is allocated server-side (see IdCardController@store);
+            // any client-supplied value is ignored.
             'card_type' => 'required|in:national_id,temp_id,foreigner_id',
             'status' => 'required|in:active,expired,revoked,lost,stolen',
             'issue_date' => 'required|date',
