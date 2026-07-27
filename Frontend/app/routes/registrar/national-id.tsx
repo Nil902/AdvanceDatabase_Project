@@ -267,13 +267,11 @@ export default function NationalIdCardPage() {
             setActionError('Select a verified citizen first.');
             return;
         }
-        const serial = createForm.serial.trim() || `NID-${Date.now().toString().slice(-8)}`;
-
         setBusy(true);
         try {
             const created = await api.post<{ data: ApiIdCard }>('/id-cards', {
                 citizen_id: createForm.citizen.id,
-                card_serial_number: serial,
+                // Serial is allocated by the registry server-side.
                 card_type: createForm.cardType,
                 status: createForm.status,
                 issue_date: createForm.issueDate,
@@ -431,13 +429,9 @@ export default function NationalIdCardPage() {
 
                         <div className="mb-4">
                             <label className="mb-1.5 block text-xs font-semibold text-slate-700">Card Serial Number</label>
-                            <input
-                                type="text"
-                                value={createForm.serial}
-                                onChange={(e) => setCreateForm((f) => ({ ...f, serial: e.target.value }))}
-                                placeholder="Auto-generated if left blank"
-                                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                            />
+                            <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                                Allocated automatically by the registry on issue.
+                            </p>
                         </div>
 
                         <div className="mb-4 grid grid-cols-2 gap-4">
