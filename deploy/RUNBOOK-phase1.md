@@ -1,5 +1,26 @@
 # Phase 1 Security — Cutover Runbook
 
+## TL;DR — turnkey path
+
+Run the one-shot script against the droplet **before** deploying Phase 1, then push:
+
+```bash
+# 1. Prep the server (generates secrets, writes the env file, provisions
+#    civil_app + Mongo users against the running stack — no downtime):
+ssh root@134.209.105.170 'bash -s' < deploy/phase1-cutover.sh
+
+# 2. Put Phase 1 on main and deploy:
+git checkout main
+git merge --no-ff --no-edit phase1-security-cutover
+git push origin main
+```
+
+The script (`deploy/phase1-cutover.sh`) is idempotent and does **not** rotate any
+credential the live app currently uses, so the running app keeps working until the
+redeploy. The manual, step-by-step version follows if you prefer to do it by hand.
+
+---
+
 These are the **server-side** steps to activate the Phase 1 repo changes. Do them
 **before** merging `phase1-security-cutover` into `main`, because once that branch
 is on `main` the auto-deploy expects the env file + provisioned roles to exist.
