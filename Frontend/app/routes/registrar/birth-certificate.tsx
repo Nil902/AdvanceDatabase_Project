@@ -10,7 +10,7 @@ import {
   ImagePlus,
 } from 'lucide-react';
 import { api, ApiError, getStoredUser, fetchAuthedBlobUrl, type Paginated } from '~/lib/api';
-import { CitizenSearch, type CitizenOption } from '~/components/CitizenSearch';
+import { ParentPicker, parentPayload, emptyParent, type ParentValue } from '~/components/ParentPicker';
 
 interface BirthRecord {
   id: string;
@@ -104,8 +104,8 @@ export default function BirthCertificatePage() {
   const [formChildEn, setFormChildEn] = useState('');
   const [formChildGender, setFormChildGender] = useState<'M' | 'F'>('M');
   const [formChildDob, setFormChildDob] = useState('');
-  const [formMother, setFormMother] = useState<CitizenOption | null>(null);
-  const [formFather, setFormFather] = useState<CitizenOption | null>(null);
+  const [formMother, setFormMother] = useState<ParentValue>(emptyParent);
+  const [formFather, setFormFather] = useState<ParentValue>(emptyParent);
   const [formCertNumber, setFormCertNumber] = useState('');
   const todayStr = new Date().toISOString().slice(0, 10);
   const [formIssueDate, setFormIssueDate] = useState(todayStr);
@@ -198,8 +198,8 @@ export default function BirthCertificatePage() {
     setFormChildEn('');
     setFormChildGender('M');
     setFormChildDob('');
-    setFormMother(null);
-    setFormFather(null);
+    setFormMother(emptyParent);
+    setFormFather(emptyParent);
     setFormCertNumber(`BC-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000 + 1000)}`);
     clearPhoto();
     setActionError(null);
@@ -235,8 +235,8 @@ export default function BirthCertificatePage() {
       });
       const created = await api.post<{ data: ApiBirthCertificate }>('/birth-certificates', {
         citizen_id: childRes.data.id,
-        mother_citizen_id: formMother?.id ?? null,
-        father_citizen_id: formFather?.id ?? null,
+        mother: parentPayload(formMother),
+        father: parentPayload(formFather),
         certificate_number: formCertNumber.trim(),
         issue_date: formIssueDate || null,
         registered_date: formRegisteredDate || null,
@@ -417,21 +417,11 @@ export default function BirthCertificatePage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <Field label="Mother (optional)">
-                    <CitizenSearch
-                      placeholder="Search mother"
-                      selected={formMother}
-                      onSelect={setFormMother}
-                      ringClass="focus:ring-blue-400"
-                    />
+                  <Field label="Mother" required>
+                    <ParentPicker value={formMother} onChange={setFormMother} required todayStr={todayStr} />
                   </Field>
                   <Field label="Father (optional)">
-                    <CitizenSearch
-                      placeholder="Search father"
-                      selected={formFather}
-                      onSelect={setFormFather}
-                      ringClass="focus:ring-blue-400"
-                    />
+                    <ParentPicker value={formFather} onChange={setFormFather} todayStr={todayStr} />
                   </Field>
                 </div>
 
