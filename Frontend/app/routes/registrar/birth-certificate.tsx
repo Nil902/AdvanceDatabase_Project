@@ -89,6 +89,51 @@ interface StoredUser {
   officer?: { officer_id: number; officer_name: string | null } | null;
 }
 
+// Phase 4.3 certificate detail fields (all optional at the UI level; numeric
+// fields are strings here and coerced on submit).
+interface BirthDetail {
+  time_of_birth: string;
+  birth_place_type: string;
+  birth_facility_name: string;
+  attendant_type: string;
+  attendant_name: string;
+  attendant_license_no: string;
+  birth_weight_grams: string;
+  gestational_age_weeks: string;
+  multiple_birth_type: string;
+  birth_order: string;
+  is_live_birth: boolean;
+  parents_marital_status: string;
+  marriage_cert_reference: string;
+  registration_type: '' | 'on_time' | 'late' | 'delayed';
+  registration_justification: string;
+  registry_book_volume: string;
+  registry_book_page: string;
+  registry_book_entry: string;
+}
+
+const emptyDetail: BirthDetail = {
+  time_of_birth: '', birth_place_type: '', birth_facility_name: '',
+  attendant_type: '', attendant_name: '', attendant_license_no: '',
+  birth_weight_grams: '', gestational_age_weeks: '', multiple_birth_type: '',
+  birth_order: '', is_live_birth: true, parents_marital_status: '',
+  marriage_cert_reference: '', registration_type: '', registration_justification: '',
+  registry_book_volume: '', registry_book_page: '', registry_book_entry: '',
+};
+
+// Suggest timeliness from the gap between birth and registration: on-time ≤30d,
+// delayed >1y, otherwise late. Registrar can override.
+function suggestRegistrationType(dob: string, registeredOn: string): 'on_time' | 'late' | 'delayed' {
+  if (!dob || !registeredOn) return 'on_time';
+  const days = (new Date(registeredOn).getTime() - new Date(dob).getTime()) / 86_400_000;
+  if (days <= 30) return 'on_time';
+  if (days > 365) return 'delayed';
+  return 'late';
+}
+
+const num = (s: string): number | null => (s.trim() === '' ? null : Number(s));
+const str = (s: string): string | null => (s.trim() === '' ? null : s.trim());
+
 export default function BirthCertificatePage() {
   const [records, setRecords] = useState<BirthRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,6 +155,10 @@ export default function BirthCertificatePage() {
   const [formBirthVillageId, setFormBirthVillageId] = useState<number | null>(null);
   // Bumped on open to remount the (uncontrolled) GeoSelect so it clears.
   const [formResetKey, setFormResetKey] = useState(0);
+  const [formChildNationality, setFormChildNationality] = useState('Cambodian');
+  const [formDetail, setFormDetail] = useState<BirthDetail>(emptyDetail);
+  const setDetail = <K extends keyof BirthDetail>(key: K, value: BirthDetail[K]) =>
+    setFormDetail((d) => ({ ...d, [key]: value }));
   const [formCertNumber, setFormCertNumber] = useState('');
   const todayStr = new Date().toISOString().slice(0, 10);
   const [formIssueDate, setFormIssueDate] = useState(todayStr);
@@ -122,6 +171,10 @@ export default function BirthCertificatePage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [registrarName, setRegistrarName] = useState('Registrar');
   const [officerId, setOfficerId] = useState<number | null>(null);
+
+  // Suggested timeliness from birth vs registration dates (registrar may override).
+  const regTypeSuggestion = suggestRegistrationType(formChildDob, formRegisteredDate);
+  const effectiveRegType = formDetail.registration_type || regTypeSuggestion;
 
   // Selected scan → local preview (revoke previous object URL to avoid leaks).
   function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -206,6 +259,8 @@ export default function BirthCertificatePage() {
     setFormFather(emptyParent);
     setFormBirthVillageId(null);
     setFormResetKey((k) => k + 1);
+    setFormChildNationality('Cambodian');
+    setFormDetail(emptyDetail);
     setFormCertNumber(`BC-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000 + 1000)}`);
     clearPhoto();
     setActionError(null);
@@ -237,7 +292,7 @@ export default function BirthCertificatePage() {
         full_name_en: formChildEn.trim() || null,
         gender: formChildGender,
         date_of_birth: formChildDob,
-        nationality: 'Cambodian',
+        nationality: str(formChildNationality) ?? 'Cambodian',
         birth_place_village_id: formBirthVillageId,
       });
       const created = await api.post<{ data: ApiBirthCertificate }>('/birth-certificates', {
@@ -249,6 +304,25 @@ export default function BirthCertificatePage() {
         registered_date: formRegisteredDate || null,
         issued_by_officer_id: officerId,
         remarks: formRemarks.trim() || null,
+        // Phase 4.3 detail
+        time_of_birth: str(formDetail.time_of_birth),
+        birth_place_type: str(formDetail.birth_place_type),
+        birth_facility_name: str(formDetail.birth_facility_name),
+        attendant_type: str(formDetail.attendant_type),
+        attendant_name: str(formDetail.attendant_name),
+        attendant_license_no: str(formDetail.attendant_license_no),
+        birth_weight_grams: num(formDetail.birth_weight_grams),
+        gestational_age_weeks: num(formDetail.gestational_age_weeks),
+        multiple_birth_type: str(formDetail.multiple_birth_type),
+        birth_order: num(formDetail.birth_order),
+        is_live_birth: formDetail.is_live_birth,
+        parents_marital_status: str(formDetail.parents_marital_status),
+        marriage_cert_reference: str(formDetail.marriage_cert_reference),
+        registration_type: formDetail.registration_type || regTypeSuggestion,
+        registration_justification: str(formDetail.registration_justification),
+        registry_book_volume: str(formDetail.registry_book_volume),
+        registry_book_page: str(formDetail.registry_book_page),
+        registry_book_entry: str(formDetail.registry_book_entry),
       });
       // Attach the scan (if any) as a second step; a failed upload is non-fatal.
       if (formPhoto) {
@@ -423,6 +497,16 @@ export default function BirthCertificatePage() {
                   </Field>
                 </div>
 
+                <Field label="Child's Nationality">
+                  <input
+                    type="text"
+                    value={formChildNationality}
+                    onChange={(e) => setFormChildNationality(e.target.value)}
+                    placeholder="Cambodian"
+                    className="input-field"
+                  />
+                </Field>
+
                 <Field label="Place of Birth">
                   <GeoSelect key={formResetKey} onChange={setFormBirthVillageId} />
                 </Field>
@@ -454,6 +538,132 @@ export default function BirthCertificatePage() {
                   <Field label="Registered Date">
                     <input type="date" value={formRegisteredDate} onChange={(e) => setFormRegisteredDate(e.target.value)} className="input-field" />
                   </Field>
+                </div>
+
+                {/* ── Certificate details (Phase 4.3) ──────────────────── */}
+                <div className="space-y-4 rounded-lg border border-slate-200 p-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Birth Details</p>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Time of Birth">
+                      <input type="time" value={formDetail.time_of_birth} onChange={(e) => setDetail('time_of_birth', e.target.value)} className="input-field" />
+                    </Field>
+                    <Field label="Live Birth?">
+                      <select value={formDetail.is_live_birth ? 'yes' : 'no'} onChange={(e) => setDetail('is_live_birth', e.target.value === 'yes')} className="input-field">
+                        <option value="yes">Live birth</option>
+                        <option value="no">Stillbirth</option>
+                      </select>
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Birth Place Type">
+                      <select value={formDetail.birth_place_type} onChange={(e) => setDetail('birth_place_type', e.target.value)} className="input-field">
+                        <option value="">—</option>
+                        <option value="hospital">Hospital</option>
+                        <option value="health_centre">Health centre</option>
+                        <option value="home">Home</option>
+                        <option value="in_transit">In transit</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </Field>
+                    <Field label="Facility Name">
+                      <input type="text" value={formDetail.birth_facility_name} onChange={(e) => setDetail('birth_facility_name', e.target.value)} className="input-field" />
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <Field label="Attendant">
+                      <select value={formDetail.attendant_type} onChange={(e) => setDetail('attendant_type', e.target.value)} className="input-field">
+                        <option value="">—</option>
+                        <option value="doctor">Doctor</option>
+                        <option value="midwife">Midwife</option>
+                        <option value="traditional">Traditional</option>
+                        <option value="none">None</option>
+                      </select>
+                    </Field>
+                    <Field label="Attendant Name">
+                      <input type="text" value={formDetail.attendant_name} onChange={(e) => setDetail('attendant_name', e.target.value)} className="input-field" />
+                    </Field>
+                    <Field label="Licence No.">
+                      <input type="text" value={formDetail.attendant_license_no} onChange={(e) => setDetail('attendant_license_no', e.target.value)} className="input-field" />
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Birth Weight (g)">
+                      <input type="number" min={200} max={10000} value={formDetail.birth_weight_grams} onChange={(e) => setDetail('birth_weight_grams', e.target.value)} className="input-field" />
+                    </Field>
+                    <Field label="Gestational Age (weeks)">
+                      <input type="number" min={20} max={45} value={formDetail.gestational_age_weeks} onChange={(e) => setDetail('gestational_age_weeks', e.target.value)} className="input-field" />
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Multiple Birth">
+                      <select value={formDetail.multiple_birth_type} onChange={(e) => setDetail('multiple_birth_type', e.target.value)} className="input-field">
+                        <option value="">—</option>
+                        <option value="singleton">Singleton</option>
+                        <option value="twin">Twin</option>
+                        <option value="triplet_plus">Triplet+</option>
+                      </select>
+                    </Field>
+                    <Field label="Birth Order">
+                      <input type="number" min={1} max={10} value={formDetail.birth_order} onChange={(e) => setDetail('birth_order', e.target.value)} className="input-field" />
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Parents' Marital Status">
+                      <select value={formDetail.parents_marital_status} onChange={(e) => setDetail('parents_marital_status', e.target.value)} className="input-field">
+                        <option value="">—</option>
+                        <option value="married">Married</option>
+                        <option value="unmarried">Unmarried</option>
+                        <option value="divorced">Divorced</option>
+                        <option value="widowed">Widowed</option>
+                      </select>
+                    </Field>
+                    <Field label="Marriage Cert. Reference">
+                      <input type="text" value={formDetail.marriage_cert_reference} onChange={(e) => setDetail('marriage_cert_reference', e.target.value)} className="input-field" />
+                    </Field>
+                  </div>
+
+                  <Field label={`Registration Type (suggested: ${regTypeSuggestion.replace('_', '-')})`}>
+                    <select
+                      value={effectiveRegType}
+                      onChange={(e) => setDetail('registration_type', e.target.value as BirthDetail['registration_type'])}
+                      className="input-field"
+                    >
+                      <option value="on_time">On-time (≤30 days)</option>
+                      <option value="late">Late</option>
+                      <option value="delayed">Delayed (&gt;1 year)</option>
+                    </select>
+                  </Field>
+
+                  {effectiveRegType !== 'on_time' && (
+                    <Field label="Justification (required for late/delayed)" required>
+                      <textarea
+                        required
+                        value={formDetail.registration_justification}
+                        onChange={(e) => setDetail('registration_justification', e.target.value)}
+                        rows={2}
+                        className="input-field"
+                        placeholder="Reason the registration is late/delayed…"
+                      />
+                    </Field>
+                  )}
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <Field label="Registry Vol.">
+                      <input type="text" value={formDetail.registry_book_volume} onChange={(e) => setDetail('registry_book_volume', e.target.value)} className="input-field" />
+                    </Field>
+                    <Field label="Registry Page">
+                      <input type="text" value={formDetail.registry_book_page} onChange={(e) => setDetail('registry_book_page', e.target.value)} className="input-field" />
+                    </Field>
+                    <Field label="Registry Entry">
+                      <input type="text" value={formDetail.registry_book_entry} onChange={(e) => setDetail('registry_book_entry', e.target.value)} className="input-field" />
+                    </Field>
+                  </div>
                 </div>
 
                 <Field label="Remarks (optional)">
