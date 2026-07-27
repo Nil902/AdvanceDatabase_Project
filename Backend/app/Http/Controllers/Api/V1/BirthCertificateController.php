@@ -9,6 +9,7 @@ use App\Http\Resources\BirthCertificateResource;
 use App\Jobs\EnqueueCertificatePrint;
 use App\Jobs\LogReadEvent;
 use App\Models\BirthCertificate;
+use App\Services\ParentResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,13 @@ use Spatie\QueryBuilder\QueryBuilder;
 
 class BirthCertificateController extends Controller
 {
+    // Canonical parent records, plus the legacy citizen links as a fallback for
+    // certificates not yet run through birth-certs:backfill-parents.
+    private const PARENT_LOADS = [
+        'citizen', 'officer.activeStamp', 'informant',
+        'motherParent.citizen', 'fatherParent.citizen', 'mother', 'father',
+    ];
+
     public function index(Request $request)
     {
         $certs = QueryBuilder::for(BirthCertificate::class)
@@ -26,30 +34,43 @@ class BirthCertificateController extends Controller
             // Newest first by default so a just-registered certificate lands on
             // page 1 (the frontend only loads page 1 for its list/search).
             ->defaultSort('-certificate_id')
-            ->with(['citizen', 'officer'])
+            ->with(self::PARENT_LOADS)
             ->paginate($request->get('per_page', 20));
 
         return BirthCertificateResource::collection($certs);
     }
 
-    public function store(StoreBirthCertificateRequest $request)
+    public function store(StoreBirthCertificateRequest $request, ParentResolver $parents)
     {
-        $cert = DB::transaction(function () use ($request) {
-            $cert = BirthCertificate::create($request->validated() + ['status' => 'issued']);
+        $data = $request->validated();
+
+        $cert = DB::transaction(function () use ($data, $parents) {
+            // All validated scalar fields flow straight through (incl. the 4.3
+            // detail fields); the parent + informant objects are handled separately.
+            $cert = BirthCertificate::create(
+                collect($data)->except(['mother', 'father', 'informant'])->merge([
+                    'registered_date' => $data['registered_date'] ?? now(),
+                    'mother_parent_id' => $parents->resolve($data['mother'] ?? null),
+                    'father_parent_id' => $parents->resolve($data['father'] ?? null),
+                    'status' => 'issued',
+                ])->all()
+            );
+
+            $cert->informant()->create($data['informant'] + ['created_at' => now()]);
 
             return $cert;
         });
 
         Cache::tags(['birth_certificates'])->flush();
 
-        return new BirthCertificateResource($cert->load(['citizen', 'mother', 'father']));
+        return new BirthCertificateResource($cert->load(self::PARENT_LOADS));
     }
 
     public function show(Request $request, int $id)
     {
         // NOTE: do not cache the Eloquent model — this cache store deserializes it
         // as __PHP_Incomplete_Class, which 500s BirthCertificateResource on a cache hit.
-        $cert = BirthCertificate::with(['citizen', 'mother', 'father', 'officer', 'images'])
+        $cert = BirthCertificate::with([...self::PARENT_LOADS, 'images'])
             ->findOrFail($id);
 
         LogReadEvent::record($request, 'birth_certificate', 'birth_certificates', $id);
@@ -64,7 +85,7 @@ class BirthCertificateController extends Controller
 
         Cache::tags(['birth_certificates'])->forget("birth_cert:{$id}");
 
-        return new BirthCertificateResource($cert->fresh(['citizen', 'mother', 'father']));
+        return new BirthCertificateResource($cert->fresh(self::PARENT_LOADS));
     }
 
     public function destroy(int $id)
@@ -112,7 +133,7 @@ class BirthCertificateController extends Controller
 
         Cache::tags(['birth_certificates'])->forget("birth_cert:{$id}");
 
-        return new BirthCertificateResource($cert->fresh(['citizen', 'mother', 'father']));
+        return new BirthCertificateResource($cert->fresh(self::PARENT_LOADS));
     }
 
     // GET /birth-certificates/{id}/photo — stream the stored scan (auth-guarded).
