@@ -56,9 +56,19 @@ Route::prefix('v1')->group(function () {
         Route::put('auth/me', [AuthController::class, 'updateProfile']);
 
         // ── Birth Certificates ───────────────────────────────────────────
-        Route::apiResource('birth-certificates', BirthCertificateController::class)
-            ->parameters(['birth-certificates' => 'id'])
+        // Explicit per-verb guards. A single resource middleware would let any
+        // birth:read holder hit destroy() (which voids the record), since destroy
+        // has no FormRequest of its own.
+        Route::get('birth-certificates', [BirthCertificateController::class, 'index'])
             ->middleware('ability:birth:read');
+        Route::get('birth-certificates/{id}', [BirthCertificateController::class, 'show'])
+            ->middleware('ability:birth:read');
+        Route::post('birth-certificates', [BirthCertificateController::class, 'store'])
+            ->middleware('ability:birth:create');
+        Route::match(['put', 'patch'], 'birth-certificates/{id}', [BirthCertificateController::class, 'update'])
+            ->middleware('ability:birth:update');
+        Route::delete('birth-certificates/{id}', [BirthCertificateController::class, 'destroy'])
+            ->middleware('ability:birth:void');
         Route::post('birth-certificates/{id}/verify', [BirthCertificateController::class, 'verify'])
             ->middleware('ability:birth:verify');
         Route::post('birth-certificates/{id}/print', [BirthCertificateController::class, 'print'])
@@ -123,7 +133,8 @@ Route::prefix('v1')->group(function () {
         Route::get('families/{id}', [FamilyController::class, 'show'])
             ->middleware('ability:family:read');
         Route::put('families/{id}', [FamilyController::class, 'update']);
-        Route::delete('families/{id}', [FamilyController::class, 'destroy']);
+        Route::delete('families/{id}', [FamilyController::class, 'destroy'])
+            ->middleware('ability:family:delete');
         Route::post('families/{id}/members', [FamilyController::class, 'addMember']);
         Route::get('families/{id}/tree', [FamilyController::class, 'tree'])
             ->middleware('ability:family:read');
@@ -142,8 +153,9 @@ Route::prefix('v1')->group(function () {
         Route::get('reports/export', [ReportController::class, 'export'])
             ->middleware('ability:reports:read');
 
-        // ── Location Cache Management ────────────────────────────────────
-        Route::delete('locations/cache', [LocationController::class, 'clearCache']);
+        // ── Location Cache Management (admin only) ───────────────────────
+        Route::delete('locations/cache', [LocationController::class, 'clearCache'])
+            ->middleware('ability:admin:read');
 
         // ── Admin (admin role only — all guarded by admin:read) ──────────
         Route::prefix('admin')->middleware('ability:admin:read')->group(function () {
