@@ -42,3 +42,30 @@ committed to git history and must be treated as **public / compromised**.
 
 Default/shared passwords (`postgres`/`postgres`, unauthenticated Mongo) must not
 be used in production — set unique strong values in the env file.
+
+## Existing-volume cutover (live prod)
+
+The Docker init scripts only run on a **fresh** data directory. The live prod
+`pgdata`/`mongodata` volumes already exist, so the least-privilege roles must be
+provisioned once, by hand. **Take a `pg_dump` and `mongodump` first.**
+
+1. Create `/opt/civil-registry/.env.production` with real values (see above).
+2. Postgres — create the `civil_app` role on the existing DB:
+   ```bash
+   docker compose -f docker-compose.prod.yml exec -T postgres \
+     psql -v ON_ERROR_STOP=1 -U postgres -d civil_registry \
+          -v civil_app_pw="THE_DB_PASSWORD" -f - < deploy/provision-db-role.sql
+   ```
+3. Mongo — enable `--auth` (deploy the compose change), then bootstrap users via
+   the localhost exception (no users exist yet):
+   ```bash
+   # root admin (first user, allowed by the localhost exception):
+   docker compose -f docker-compose.prod.yml exec mongo mongosh admin \
+     --eval 'db.createUser({user:"root",pwd:"THE_ROOT_PW",roles:["root"]})'
+   # civil_app, authenticated as root:
+   docker compose -f docker-compose.prod.yml exec -T mongo mongosh \
+     -u root -p "THE_ROOT_PW" --authenticationDatabase admin \
+     --eval "var appPwd='THE_MONGO_PASSWORD'" - < deploy/provision-mongo-user.js
+   ```
+4. Only then switch `DB_USERNAME` to `civil_app` in the env file and restart the
+   `app` service.
