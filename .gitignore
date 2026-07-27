@@ -1,0 +1,11 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# JetBrains IDEs
+.idea/
+*.iml
+
+# Local env / secrets (never commit real values)
+.env.production
+deploy/.env.production
