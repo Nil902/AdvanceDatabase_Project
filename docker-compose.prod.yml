@@ -55,7 +55,8 @@ services:
       MAIL_LOG_CHANNEL: stderr
       MAIL_FROM_ADDRESS: sina015772825@gmail.com
       MAIL_FROM_NAME: CivilRegistry
-      RUN_MIGRATIONS: "true"
+      # Migrations are NOT run on container boot anymore — they run as an explicit,
+      # backed-up deploy step (deploy/migrate.sh) as the DB superuser.
       PGBADGER_URL: http://134.209.105.170:8081
     depends_on:
       - postgres
