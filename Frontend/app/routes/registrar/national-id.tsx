@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-    CreditCard, ShieldCheck, Eye, Inbox, Plus, ArrowLeft, UserRound, Loader2, AlertCircle, ImagePlus,
+    CreditCard, ShieldCheck, Eye, Inbox, Plus, ArrowLeft, UserRound, Loader2, AlertCircle, ImagePlus, Search,
 } from 'lucide-react';
 import { api, ApiError, getStoredUser, fetchAuthedBlobUrl, type Paginated } from '~/lib/api';
 import { CitizenSearch, type CitizenOption } from '~/components/CitizenSearch';
@@ -173,6 +173,7 @@ export default function NationalIdCardPage() {
     const [detailPhoto, setDetailPhoto] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
     const [registrarName, setRegistrarName] = useState('Registrar');
+    const [searchTerm, setSearchTerm] = useState('');
 
     // Selected photo → local preview (revoke the previous object URL to avoid leaks).
     function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -221,6 +222,18 @@ export default function NationalIdCardPage() {
     }, []);
 
     const selected = panel.type === 'detail' ? cards.find((c) => c.id === panel.cardId) ?? null : null;
+
+    // Client-side filter over the loaded page by name (KH/EN), NID, or serial.
+    // NOTE: only searches the loaded page; full server-side search is Phase 7.6.
+    const query = searchTerm.trim().toLowerCase();
+    const visibleCards = query === ''
+        ? cards
+        : cards.filter((c) =>
+            c.nameEn.toLowerCase().includes(query) ||
+            c.nameKh.toLowerCase().includes(query) ||
+            c.nid.toLowerCase().includes(query) ||
+            c.cardNumber.toLowerCase().includes(query),
+        );
 
     // Load the selected card's stored photo (auth-guarded blob → object URL).
     // Blank it first so the previous card's photo never lingers while loading.
@@ -323,6 +336,20 @@ export default function NationalIdCardPage() {
             </span>
                     </div>
 
+                    <div className="px-6 pb-4">
+                        <div className="relative">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                            <input
+                                type="search"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Search by name, NID, or card serial…"
+                                aria-label="Search ID cards"
+                                className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                            />
+                        </div>
+                    </div>
+
                     {loading ? (
                         <div className="flex items-center justify-center gap-2 p-6 text-xs text-slate-400">
                             <Loader2 className="h-4 w-4 animate-spin" /> Loading smart NID cards…
@@ -333,9 +360,11 @@ export default function NationalIdCardPage() {
                         </div>
                     ) : cards.length === 0 ? (
                         <div className="p-6 text-center text-xs text-slate-400">No ID cards on file yet.</div>
+                    ) : visibleCards.length === 0 ? (
+                        <div className="p-6 text-center text-xs text-slate-400">No cards match “{searchTerm}”.</div>
                     ) : (
                         <div className="max-h-[560px] divide-y divide-slate-100 overflow-y-auto">
-                            {cards.map((card) => {
+                            {visibleCards.map((card) => {
                                 const isSelected = panel.type === 'detail' && panel.cardId === card.id;
                                 return (
                                     <button
