@@ -2,8 +2,17 @@
 
 namespace App\Providers;
 
+use App\Models\BirthCertificate;
+use App\Models\Citizen;
+use App\Models\DivorceCertificate;
+use App\Models\FamilyUnit;
+use App\Models\Household;
+use App\Models\HouseholdMember;
+use App\Models\IdentityCard;
+use App\Models\MarriageCertificate;
 use App\Models\SystemUser;
 use App\Models\UserAuthToken;
+use App\Observers\AuditObserver;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
 
@@ -16,6 +25,22 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Audit trail: every create/update/delete on these registry models writes
+        // an append-only, hash-chained row to user_action_logs (AuditObserver).
+        foreach ([
+            Citizen::class,
+            BirthCertificate::class,
+            IdentityCard::class,
+            Household::class,
+            HouseholdMember::class,
+            MarriageCertificate::class,
+            DivorceCertificate::class,
+            FamilyUnit::class,
+            SystemUser::class,
+        ] as $model) {
+            $model::observe(AuditObserver::class);
+        }
+
         Auth::viaRequest('api_token', function ($request) {
             $plainToken = $request->bearerToken();
 

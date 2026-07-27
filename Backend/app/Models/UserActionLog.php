@@ -13,9 +13,12 @@ class UserActionLog extends Model
     protected $fillable = [
         'user_id', 'session_token', 'action', 'target_table', 'target_id',
         'old_value', 'new_value', 'ip_address', 'user_agent', 'performed_at',
+        'prev_hash', 'hash',
     ];
 
     protected $casts = [
+        'user_id' => 'integer',
+        'target_id' => 'integer',
         'old_value' => 'array',
         'new_value' => 'array',
         'performed_at' => 'datetime',
