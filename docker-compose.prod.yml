@@ -96,7 +96,10 @@ services:
     depends_on:
       - pgbadger
     ports:
-      - "8081:80"
+      # Loopback only — pgBadger reports contain query text with bind params
+      # (national IDs, names). Reach via SSH tunnel until it's put behind auth
+      # via the reverse proxy (Phase 1.5). Was publicly exposed on "8081:80".
+      - "127.0.0.1:8081:80"
     volumes:
       - pgbadger-reports:/usr/share/nginx/html:ro
 
