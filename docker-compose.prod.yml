@@ -27,6 +27,9 @@ services:
       APP_DEBUG: "false"
       APP_URL: http://134.209.105.170
       FRONTEND_URL: http://134.209.105.170:3000
+      # Restrict CORS to the deployed frontend origin (config default falls back
+      # to '*' otherwise — see Backend/config/cors.php).
+      CORS_ALLOWED_ORIGINS: http://134.209.105.170:3000
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432
