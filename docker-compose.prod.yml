@@ -20,10 +20,14 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+    # Secrets (APP_KEY, DB/Mongo credentials) come from an off-repo env file on
+    # the server. See deploy/env.production.example for the required keys and
+    # SECURITY.md for provisioning. This file MUST exist before deploy.
+    env_file:
+      - /opt/civil-registry/.env.production
     environment:
       APP_NAME: CivilRegistry
       APP_ENV: production
-      APP_KEY: base64://vUsQ71OLB9FWwG4JZBgW6sC5cxOYTwrbq7B8mqJv0=
       APP_DEBUG: "false"
       APP_URL: http://134.209.105.170
       FRONTEND_URL: http://134.209.105.170:3000
@@ -34,8 +38,6 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_DATABASE: civil_registry
-      DB_USERNAME: postgres
-      DB_PASSWORD: postgres
       MONGO_HOST: mongo
       MONGO_PORT: 27017
       MONGO_DATABASE: civil_registry_docs
@@ -65,10 +67,11 @@ services:
     build:
       context: ./Backend/docker/postgres
     restart: unless-stopped
+    # POSTGRES_USER / POSTGRES_PASSWORD (superuser) come from the off-repo env file.
+    env_file:
+      - /opt/civil-registry/.env.production
     environment:
       POSTGRES_DB: civil_registry
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
     command: postgres -c config_file=/etc/postgresql/pgbadger.conf
     ports:
       - "127.0.0.1:5432:5432"   # loopback only — reach via SSH tunnel, not the public internet
