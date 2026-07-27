@@ -10,6 +10,7 @@ use App\Http\Requests\IdCard\ReplaceCardRequest;
 use App\Http\Requests\IdCard\StoreIdCardRequest;
 use App\Http\Requests\IdCard\UpdateStatusRequest;
 use App\Http\Resources\IdCardResource;
+use App\Jobs\LogReadEvent;
 use App\Models\CardRequest;
 use App\Models\CardStatusLog;
 use App\Models\DispatchTracking;
@@ -35,6 +36,10 @@ class IdCardController extends Controller
             ->allowedSorts('issue_date', 'expiry_date')
             ->with(['citizen'])
             ->paginate($request->get('per_page', 20));
+
+        LogReadEvent::record($request, 'id_card', 'identity_cards', null, [
+            'filters' => $request->query('filter', []),
+        ]);
 
         return IdCardResource::collection($cards);
     }

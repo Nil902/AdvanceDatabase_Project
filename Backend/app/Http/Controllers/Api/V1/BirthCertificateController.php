@@ -7,6 +7,7 @@ use App\Http\Requests\BirthCertificate\StoreBirthCertificateRequest;
 use App\Http\Requests\BirthCertificate\UpdateBirthCertificateRequest;
 use App\Http\Resources\BirthCertificateResource;
 use App\Jobs\EnqueueCertificatePrint;
+use App\Jobs\LogReadEvent;
 use App\Models\BirthCertificate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -44,12 +45,14 @@ class BirthCertificateController extends Controller
         return new BirthCertificateResource($cert->load(['citizen', 'mother', 'father']));
     }
 
-    public function show(int $id)
+    public function show(Request $request, int $id)
     {
         // NOTE: do not cache the Eloquent model — this cache store deserializes it
         // as __PHP_Incomplete_Class, which 500s BirthCertificateResource on a cache hit.
         $cert = BirthCertificate::with(['citizen', 'mother', 'father', 'officer', 'images'])
             ->findOrFail($id);
+
+        LogReadEvent::record($request, 'birth_certificate', 'birth_certificates', $id);
 
         return new BirthCertificateResource($cert);
     }

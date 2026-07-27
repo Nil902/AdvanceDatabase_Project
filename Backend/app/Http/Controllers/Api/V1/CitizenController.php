@@ -9,6 +9,7 @@ use App\Http\Requests\Citizen\PhotoUploadRequest;
 use App\Http\Requests\Citizen\StoreCitizenRequest;
 use App\Http\Requests\Citizen\UpdateCitizenRequest;
 use App\Http\Resources\CitizenResource;
+use App\Jobs\LogReadEvent;
 use App\Models\Citizen;
 use App\Services\CitizenService;
 use Illuminate\Http\Request;
@@ -37,6 +38,9 @@ class CitizenController extends Controller
             ->orderBy('full_name_en')
             ->limit((int) $request->get('limit', 10))
             ->get();
+
+        // Audit the lookup (unauthorized citizen search is a common real abuse).
+        LogReadEvent::record($request, 'citizen', 'citizens', null, ['query' => $q]);
 
         return CitizenResource::collection($citizens);
     }
