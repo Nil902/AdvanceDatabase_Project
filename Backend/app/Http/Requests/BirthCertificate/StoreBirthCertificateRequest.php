@@ -74,6 +74,15 @@ class StoreBirthCertificateRequest extends FormRequest
             'registry_book_volume' => 'nullable|string|max:50',
             'registry_book_page' => 'nullable|string|max:50',
             'registry_book_entry' => 'nullable|string|max:50',
+
+            // ── Informant / declarant (Phase 4.4, legally required) ───────
+            'informant' => 'required|array',
+            'informant.full_name' => 'required|string|max:255',
+            'informant.national_id_number' => 'nullable|string|max:50',
+            'informant.relationship_to_child' => 'required|string|max:100',
+            'informant.address' => 'nullable|string|max:500',
+            'informant.phone_number' => 'nullable|string|max:30',
+            'informant.declaration_date' => 'required|date',
         ];
     }
 }

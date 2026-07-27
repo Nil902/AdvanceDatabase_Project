@@ -69,4 +69,10 @@ class BirthCertificate extends Model
     {
         return $this->hasMany(BirthCertificateImage::class, 'certificate_id', 'certificate_id');
     }
+
+    // The declarant who legally reported the birth (Phase 4.4).
+    public function informant()
+    {
+        return $this->hasOne(BirthInformant::class, 'certificate_id', 'certificate_id');
+    }
 }

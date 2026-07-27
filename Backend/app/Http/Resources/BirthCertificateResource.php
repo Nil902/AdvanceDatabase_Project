@@ -44,6 +44,21 @@ class BirthCertificateResource extends JsonResource
             'mother' => $this->parentPayload($this->motherParent, $this->mother),
             'father' => $this->parentPayload($this->fatherParent, $this->father),
             'officer' => new RegistrationOfficerResource($this->whenLoaded('officer')),
+            // The issuing officer's seal (Phase 4.5) — presence + id for the print.
+            'officer_stamp' => $this->whenLoaded('officer', function () {
+                $stamp = $this->officer?->activeStamp;
+
+                return $stamp ? ['stamp_id' => $stamp->stamp_id, 'mime_type' => $stamp->mime_type] : null;
+            }),
+            // The declarant who reported the birth (Phase 4.4).
+            'informant' => $this->whenLoaded('informant', fn () => $this->informant ? [
+                'full_name' => $this->informant->full_name,
+                'national_id_number' => $this->informant->national_id_number,
+                'relationship_to_child' => $this->informant->relationship_to_child,
+                'address' => $this->informant->address,
+                'phone_number' => $this->informant->phone_number,
+                'declaration_date' => optional($this->informant->declaration_date)->toDateString(),
+            ] : null),
             'images' => $this->whenLoaded('images', function () {
                 return $this->images->map(fn ($img) => [
                     'id' => $img->image_id,

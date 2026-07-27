@@ -21,7 +21,10 @@ class BirthCertificateController extends Controller
 {
     // Canonical parent records, plus the legacy citizen links as a fallback for
     // certificates not yet run through birth-certs:backfill-parents.
-    private const PARENT_LOADS = ['citizen', 'officer', 'motherParent.citizen', 'fatherParent.citizen', 'mother', 'father'];
+    private const PARENT_LOADS = [
+        'citizen', 'officer.activeStamp', 'informant',
+        'motherParent.citizen', 'fatherParent.citizen', 'mother', 'father',
+    ];
 
     public function index(Request $request)
     {
@@ -43,15 +46,19 @@ class BirthCertificateController extends Controller
 
         $cert = DB::transaction(function () use ($data, $parents) {
             // All validated scalar fields flow straight through (incl. the 4.3
-            // detail fields); the parent objects are resolved to parents rows.
-            return BirthCertificate::create(
-                collect($data)->except(['mother', 'father'])->merge([
+            // detail fields); the parent + informant objects are handled separately.
+            $cert = BirthCertificate::create(
+                collect($data)->except(['mother', 'father', 'informant'])->merge([
                     'registered_date' => $data['registered_date'] ?? now(),
                     'mother_parent_id' => $parents->resolve($data['mother'] ?? null),
                     'father_parent_id' => $parents->resolve($data['father'] ?? null),
                     'status' => 'issued',
                 ])->all()
             );
+
+            $cert->informant()->create($data['informant'] + ['created_at' => now()]);
+
+            return $cert;
         });
 
         Cache::tags(['birth_certificates'])->flush();
