@@ -34,6 +34,9 @@ class IdCardController extends Controller
                 'card_serial_number',
             )
             ->allowedSorts('issue_date', 'expiry_date')
+            // Newest first by default so a just-issued card lands on page 1 (the
+            // frontend list only loads page 1).
+            ->defaultSort('-card_id')
             ->with(['citizen'])
             ->paginate($request->get('per_page', 20));
 
