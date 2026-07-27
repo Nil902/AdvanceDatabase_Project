@@ -20,10 +20,14 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+    # Secrets (APP_KEY, DB/Mongo credentials) come from an off-repo env file on
+    # the server. See deploy/env.production.example for the required keys and
+    # SECURITY.md for provisioning. This file MUST exist before deploy.
+    env_file:
+      - /opt/civil-registry/.env.production
     environment:
       APP_NAME: CivilRegistry
       APP_ENV: production
-      APP_KEY: base64://vUsQ71OLB9FWwG4JZBgW6sC5cxOYTwrbq7B8mqJv0=
       APP_DEBUG: "false"
       APP_URL: http://134.209.105.170
       FRONTEND_URL: http://134.209.105.170:3000
@@ -34,11 +38,11 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_DATABASE: civil_registry
-      DB_USERNAME: postgres
-      DB_PASSWORD: postgres
       MONGO_HOST: mongo
       MONGO_PORT: 27017
       MONGO_DATABASE: civil_registry_docs
+      # civil_app is defined on the civil_registry_docs db, so auth against it.
+      MONGO_AUTH_SOURCE: civil_registry_docs
       REDIS_HOST: redis
       REDIS_PORT: 6379
       CACHE_STORE: redis
@@ -51,7 +55,8 @@ services:
       MAIL_LOG_CHANNEL: stderr
       MAIL_FROM_ADDRESS: sina015772825@gmail.com
       MAIL_FROM_NAME: CivilRegistry
-      RUN_MIGRATIONS: "true"
+      # Migrations are NOT run on container boot anymore — they run as an explicit,
+      # backed-up deploy step (deploy/migrate.sh) as the DB superuser.
       PGBADGER_URL: http://134.209.105.170:8081
     depends_on:
       - postgres
@@ -65,10 +70,11 @@ services:
     build:
       context: ./Backend/docker/postgres
     restart: unless-stopped
+    # POSTGRES_USER / POSTGRES_PASSWORD (superuser) come from the off-repo env file.
+    env_file:
+      - /opt/civil-registry/.env.production
     environment:
       POSTGRES_DB: civil_registry
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
     command: postgres -c config_file=/etc/postgresql/pgbadger.conf
     ports:
       - "127.0.0.1:5432:5432"   # loopback only — reach via SSH tunnel, not the public internet
@@ -106,10 +112,17 @@ services:
   mongo:
     image: mongo:7
     restart: unless-stopped
+    # --auth enforces authentication. Root + civil_app credentials come from the
+    # off-repo env file. The init script (fresh volume only) creates civil_app;
+    # existing volumes are provisioned via deploy/provision-mongo-user.js.
+    command: ["mongod", "--auth"]
+    env_file:
+      - /opt/civil-registry/.env.production
     ports:
       - "127.0.0.1:27017:27017"   # loopback only — reach via SSH tunnel, not the public internet
     volumes:
       - mongodata:/data/db
+      - ./Backend/docker/mongo/init:/docker-entrypoint-initdb.d:ro
 
   redis:
     image: redis:7-alpine

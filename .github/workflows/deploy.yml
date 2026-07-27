@@ -168,5 +168,10 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             docker compose -f docker-compose.prod.yml down
-            docker compose -f docker-compose.prod.yml up -d --build
+            # Build images, bring up the databases, then migrate explicitly with a
+            # backup (migrations no longer run on app container boot).
+            docker compose -f docker-compose.prod.yml build
+            docker compose -f docker-compose.prod.yml up -d postgres mongo redis
+            bash deploy/migrate.sh
+            docker compose -f docker-compose.prod.yml up -d
             docker image prune -f
