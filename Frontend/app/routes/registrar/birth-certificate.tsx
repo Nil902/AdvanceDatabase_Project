@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { api, ApiError, getStoredUser, fetchAuthedBlobUrl, type Paginated } from '~/lib/api';
 import { ParentPicker, parentPayload, emptyParent, type ParentValue } from '~/components/ParentPicker';
+import { GeoSelect } from '~/components/GeoSelect';
 
 interface BirthRecord {
   id: string;
@@ -106,6 +107,9 @@ export default function BirthCertificatePage() {
   const [formChildDob, setFormChildDob] = useState('');
   const [formMother, setFormMother] = useState<ParentValue>(emptyParent);
   const [formFather, setFormFather] = useState<ParentValue>(emptyParent);
+  const [formBirthVillageId, setFormBirthVillageId] = useState<number | null>(null);
+  // Bumped on open to remount the (uncontrolled) GeoSelect so it clears.
+  const [formResetKey, setFormResetKey] = useState(0);
   const [formCertNumber, setFormCertNumber] = useState('');
   const todayStr = new Date().toISOString().slice(0, 10);
   const [formIssueDate, setFormIssueDate] = useState(todayStr);
@@ -200,6 +204,8 @@ export default function BirthCertificatePage() {
     setFormChildDob('');
     setFormMother(emptyParent);
     setFormFather(emptyParent);
+    setFormBirthVillageId(null);
+    setFormResetKey((k) => k + 1);
     setFormCertNumber(`BC-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000 + 1000)}`);
     clearPhoto();
     setActionError(null);
@@ -232,6 +238,7 @@ export default function BirthCertificatePage() {
         gender: formChildGender,
         date_of_birth: formChildDob,
         nationality: 'Cambodian',
+        birth_place_village_id: formBirthVillageId,
       });
       const created = await api.post<{ data: ApiBirthCertificate }>('/birth-certificates', {
         citizen_id: childRes.data.id,
@@ -415,6 +422,10 @@ export default function BirthCertificatePage() {
                     />
                   </Field>
                 </div>
+
+                <Field label="Place of Birth">
+                  <GeoSelect key={formResetKey} onChange={setFormBirthVillageId} />
+                </Field>
 
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Mother" required>
