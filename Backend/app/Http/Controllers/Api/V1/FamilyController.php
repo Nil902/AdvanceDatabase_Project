@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Family\AddMemberRequest;
 use App\Http\Requests\Family\StoreFamilyRequest;
+use App\Http\Requests\Family\UpdateFamilyRequest;
 use App\Http\Resources\FamilyResource;
 use App\Models\FamilyUnit;
 use App\Services\FamilyService;
@@ -65,10 +66,10 @@ class FamilyController extends Controller
         return FamilyResource::collection($families);
     }
 
-    public function update(Request $request, int $id)
+    public function update(UpdateFamilyRequest $request, int $id)
     {
         $family = FamilyUnit::findOrFail($id);
-        $family->update($request->only(['family_code', 'head_citizen_id']));
+        $family->update($request->validated());
 
         return new FamilyResource($family);
     }
