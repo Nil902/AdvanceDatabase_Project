@@ -17,6 +17,27 @@ class BirthCertificateResource extends JsonResource
             'registered_date' => $this->registered_date?->toDateString(),
             'remarks' => $this->remarks,
             'has_photo' => (bool) $this->photo_path,
+            // Phase 4.3 certificate detail
+            'time_of_birth' => $this->time_of_birth,
+            'birth_place_type' => $this->birth_place_type,
+            'birth_facility_name' => $this->birth_facility_name,
+            'attendant_type' => $this->attendant_type,
+            'attendant_name' => $this->attendant_name,
+            'attendant_license_no' => $this->attendant_license_no,
+            'birth_weight_grams' => $this->birth_weight_grams,
+            'gestational_age_weeks' => $this->gestational_age_weeks,
+            'multiple_birth_type' => $this->multiple_birth_type,
+            'birth_order' => $this->birth_order,
+            'is_live_birth' => $this->is_live_birth,
+            'parents_marital_status' => $this->parents_marital_status,
+            'marriage_cert_reference' => $this->marriage_cert_reference,
+            'registration_type' => $this->registration_type,
+            'registration_justification' => $this->registration_justification,
+            'registry_book' => [
+                'volume' => $this->registry_book_volume,
+                'page' => $this->registry_book_page,
+                'entry' => $this->registry_book_entry,
+            ],
             'citizen' => new CitizenResource($this->whenLoaded('citizen')),
             // Canonical parent record, falling back to the legacy citizen link for
             // certificates not yet backfilled (Phase 4.2).

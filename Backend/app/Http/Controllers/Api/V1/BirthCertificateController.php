@@ -42,18 +42,16 @@ class BirthCertificateController extends Controller
         $data = $request->validated();
 
         $cert = DB::transaction(function () use ($data, $parents) {
-            return BirthCertificate::create([
-                'citizen_id' => $data['citizen_id'],
-                'certificate_number' => $data['certificate_number'],
-                'issue_date' => $data['issue_date'] ?? null,
-                'issued_by_officer_id' => $data['issued_by_officer_id'] ?? null,
-                'registered_date' => $data['registered_date'] ?? now(),
-                'remarks' => $data['remarks'] ?? null,
-                // Resolve each parent (linked citizen or manual) to a parents row.
-                'mother_parent_id' => $parents->resolve($data['mother'] ?? null),
-                'father_parent_id' => $parents->resolve($data['father'] ?? null),
-                'status' => 'issued',
-            ]);
+            // All validated scalar fields flow straight through (incl. the 4.3
+            // detail fields); the parent objects are resolved to parents rows.
+            return BirthCertificate::create(
+                collect($data)->except(['mother', 'father'])->merge([
+                    'registered_date' => $data['registered_date'] ?? now(),
+                    'mother_parent_id' => $parents->resolve($data['mother'] ?? null),
+                    'father_parent_id' => $parents->resolve($data['father'] ?? null),
+                    'status' => 'issued',
+                ])->all()
+            );
         });
 
         Cache::tags(['birth_certificates'])->flush();

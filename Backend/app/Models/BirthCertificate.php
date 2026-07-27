@@ -13,11 +13,22 @@ class BirthCertificate extends Model
         'mother_parent_id', 'father_parent_id',
         'certificate_number', 'issue_date', 'issued_by_officer_id',
         'registered_date', 'status', 'remarks', 'photo_path',
+        // Phase 4.3 detail fields
+        'time_of_birth', 'birth_place_type', 'birth_facility_name',
+        'attendant_type', 'attendant_name', 'attendant_license_no',
+        'birth_weight_grams', 'gestational_age_weeks', 'multiple_birth_type',
+        'birth_order', 'is_live_birth', 'parents_marital_status',
+        'marriage_cert_reference', 'registration_type', 'registration_justification',
+        'registry_book_volume', 'registry_book_page', 'registry_book_entry',
     ];
 
     protected $casts = [
         'issue_date' => 'datetime',
         'registered_date' => 'datetime',
+        'is_live_birth' => 'boolean',
+        'birth_weight_grams' => 'integer',
+        'gestational_age_weeks' => 'integer',
+        'birth_order' => 'integer',
     ];
 
     public function citizen()
