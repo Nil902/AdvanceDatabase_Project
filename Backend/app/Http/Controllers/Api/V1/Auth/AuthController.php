@@ -108,13 +108,20 @@ class AuthController extends Controller
         // is covered here so both supervisors (2) and registrars (3) can operate
         // the portal without hitting a 403 (e.g. household:update for member
         // removal / address changes).
+        // Must list EVERY granular ability the portal's routes/FormRequests check
+        // (hasAbility is an exact match). A missing entry 403s an operator on a
+        // function they're meant to perform — e.g. the assign_nid / upload_* /
+        // renew / replace / vital:* endpoints all enforce their own ability.
         $portalAbilities = [
-            'birth:create', 'birth:read', 'birth:update', 'birth:delete', 'birth:verify', 'birth:print',
-            'id_card:create', 'id_card:read', 'id_card:update', 'id_card:update_status', 'id_card:dispatch',
+            'birth:create', 'birth:read', 'birth:update', 'birth:void', 'birth:verify', 'birth:print',
+            'id_card:create', 'id_card:read', 'id_card:update', 'id_card:update_status',
+            'id_card:dispatch', 'id_card:renew', 'id_card:replace',
             'household:create', 'household:read', 'household:update',
             'household:add_member', 'household:change_head', 'household:transfer', 'household:update_address',
-            'family:create', 'family:read', 'family:update', 'family:add_member',
+            'family:create', 'family:read', 'family:update', 'family:add_member', 'family:delete',
             'citizen:create', 'citizen:read', 'citizen:update',
+            'citizen:assign_nid', 'citizen:upload_fingerprint', 'citizen:upload_photo',
+            'vital:birth', 'vital:death', 'vital:divorce', 'vital:marriage',
             'reports:read',
         ];
 
