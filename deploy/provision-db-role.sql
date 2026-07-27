@@ -29,3 +29,6 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT USAGE, SELECT ON SEQUENCES TO civil_app;
 
 REVOKE CREATE ON SCHEMA public FROM civil_app;
+-- Also strip the CREATE that the PUBLIC pseudo-role grants, otherwise civil_app
+-- inherits it and can still create tables (superuser + migrations are unaffected).
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;

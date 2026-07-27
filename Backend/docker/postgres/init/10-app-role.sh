@@ -39,6 +39,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
 
 -- Deny schema-level DDL (no CREATE TABLE etc.).
 REVOKE CREATE ON SCHEMA public FROM civil_app;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 EOSQL
 
 echo "10-app-role.sh: civil_app role provisioned."
