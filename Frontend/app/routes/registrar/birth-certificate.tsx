@@ -134,6 +134,16 @@ function suggestRegistrationType(dob: string, registeredOn: string): 'on_time' |
 const num = (s: string): number | null => (s.trim() === '' ? null : Number(s));
 const str = (s: string): string | null => (s.trim() === '' ? null : s.trim());
 
+// Phase 4.4 informant / declarant (legally required).
+interface InformantForm {
+  full_name: string;
+  national_id_number: string;
+  relationship_to_child: string;
+  address: string;
+  phone_number: string;
+  declaration_date: string;
+}
+
 export default function BirthCertificatePage() {
   const [records, setRecords] = useState<BirthRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -175,6 +185,13 @@ export default function BirthCertificatePage() {
   // Suggested timeliness from birth vs registration dates (registrar may override).
   const regTypeSuggestion = suggestRegistrationType(formChildDob, formRegisteredDate);
   const effectiveRegType = formDetail.registration_type || regTypeSuggestion;
+
+  const [formInformant, setFormInformant] = useState<InformantForm>(() => ({
+    full_name: '', national_id_number: '', relationship_to_child: '',
+    address: '', phone_number: '', declaration_date: todayStr,
+  }));
+  const setInformant = <K extends keyof InformantForm>(k: K, v: InformantForm[K]) =>
+    setFormInformant((i) => ({ ...i, [k]: v }));
 
   // Selected scan → local preview (revoke previous object URL to avoid leaks).
   function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -261,6 +278,10 @@ export default function BirthCertificatePage() {
     setFormResetKey((k) => k + 1);
     setFormChildNationality('Cambodian');
     setFormDetail(emptyDetail);
+    setFormInformant({
+      full_name: '', national_id_number: '', relationship_to_child: '',
+      address: '', phone_number: '', declaration_date: todayStr,
+    });
     setFormCertNumber(`BC-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000 + 1000)}`);
     clearPhoto();
     setActionError(null);
@@ -283,6 +304,14 @@ export default function BirthCertificatePage() {
     }
     if (!formCertNumber.trim()) {
       setActionError('Enter a certificate number.');
+      return;
+    }
+    if (!formInformant.full_name.trim() || !formInformant.relationship_to_child.trim()) {
+      setActionError("Enter the informant's name and relationship to the child.");
+      return;
+    }
+    if (effectiveRegType !== 'on_time' && !formDetail.registration_justification.trim()) {
+      setActionError('A justification is required for a late/delayed registration.');
       return;
     }
     setBusy(true);
@@ -323,6 +352,15 @@ export default function BirthCertificatePage() {
         registry_book_volume: str(formDetail.registry_book_volume),
         registry_book_page: str(formDetail.registry_book_page),
         registry_book_entry: str(formDetail.registry_book_entry),
+        // Phase 4.4 informant / declarant (required)
+        informant: {
+          full_name: formInformant.full_name.trim(),
+          national_id_number: str(formInformant.national_id_number),
+          relationship_to_child: formInformant.relationship_to_child.trim(),
+          address: str(formInformant.address),
+          phone_number: str(formInformant.phone_number),
+          declaration_date: formInformant.declaration_date || null,
+        },
       });
       // Attach the scan (if any) as a second step; a failed upload is non-fatal.
       if (formPhoto) {
@@ -662,6 +700,31 @@ export default function BirthCertificatePage() {
                     </Field>
                     <Field label="Registry Entry">
                       <input type="text" value={formDetail.registry_book_entry} onChange={(e) => setDetail('registry_book_entry', e.target.value)} className="input-field" />
+                    </Field>
+                  </div>
+                </div>
+
+                {/* ── Informant / declarant (Phase 4.4, required) ──────── */}
+                <div className="space-y-4 rounded-lg border border-slate-200 p-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Informant / Declarant</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Full Name" required>
+                      <input type="text" required value={formInformant.full_name} onChange={(e) => setInformant('full_name', e.target.value)} className="input-field" />
+                    </Field>
+                    <Field label="Relationship to Child" required>
+                      <input type="text" required value={formInformant.relationship_to_child} onChange={(e) => setInformant('relationship_to_child', e.target.value)} placeholder="e.g. Mother, Father, Grandparent" className="input-field" />
+                    </Field>
+                    <Field label="National ID">
+                      <input type="text" value={formInformant.national_id_number} onChange={(e) => setInformant('national_id_number', e.target.value)} className="input-field" />
+                    </Field>
+                    <Field label="Phone">
+                      <input type="text" value={formInformant.phone_number} onChange={(e) => setInformant('phone_number', e.target.value)} className="input-field" />
+                    </Field>
+                    <Field label="Address">
+                      <input type="text" value={formInformant.address} onChange={(e) => setInformant('address', e.target.value)} className="input-field" />
+                    </Field>
+                    <Field label="Declaration Date" required>
+                      <input type="date" required max={todayStr} value={formInformant.declaration_date} onChange={(e) => setInformant('declaration_date', e.target.value)} className="input-field" />
                     </Field>
                   </div>
                 </div>
