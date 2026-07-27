@@ -19,11 +19,11 @@ class CitizenService
 
     public function findById(int $id): Citizen
     {
-        return Cache::tags(['citizens'])->remember(
-            "citizen:{$id}",
-            now()->addMinutes(15),
-            fn () => Citizen::findOrFail($id)
-        );
+        // NOTE: do not cache the Eloquent model here. This cache store deserializes
+        // cached models as __PHP_Incomplete_Class, which then violates the : Citizen
+        // return type and 500s on a cache hit (same reason HouseholdService::getMembers
+        // and the demographics report avoid caching Collections/models).
+        return Citizen::findOrFail($id);
     }
 
     public function update(Citizen $citizen, array $data): Citizen

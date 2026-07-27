@@ -29,7 +29,9 @@ class GeographySeeder extends Seeder
                 ->where('province_code', $provinceCode)
                 ->value('province_id');
 
-            if (!$provinceId) continue;
+            if (! $provinceId) {
+                continue;
+            }
 
             foreach ($districts as $district) {
                 DB::table('districts')->insertOrIgnore([
@@ -49,7 +51,9 @@ class GeographySeeder extends Seeder
                 ->where('district_code', $districtCode)
                 ->value('district_id');
 
-            if (!$districtId) continue;
+            if (! $districtId) {
+                continue;
+            }
 
             foreach ($communes as $commune) {
                 DB::table('communes')->insertOrIgnore([
@@ -74,7 +78,9 @@ class GeographySeeder extends Seeder
 
         foreach ($villagesByCommune as $communeCode => $villages) {
             $communeId = $communeCodeToId[$communeCode] ?? null;
-            if (!$communeId) continue;
+            if (! $communeId) {
+                continue;
+            }
 
             foreach ($villages as $village) {
                 $batch[] = [
@@ -92,7 +98,7 @@ class GeographySeeder extends Seeder
             }
         }
 
-        if (!empty($batch)) {
+        if (! empty($batch)) {
             DB::table('villages')->insertOrIgnore($batch);
         }
 

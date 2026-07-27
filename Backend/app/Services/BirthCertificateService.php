@@ -21,12 +21,11 @@ class BirthCertificateService
 
     public function findById(int $id): BirthCertificate
     {
-        return Cache::tags(['birth_certificates'])->remember(
-            "birth_cert:{$id}",
-            now()->addMinutes(10),
-            fn () => BirthCertificate::with(['citizen', 'mother', 'father', 'officer', 'images'])
-                ->findOrFail($id)
-        );
+        // NOTE: do not cache the Eloquent model — this cache store deserializes it
+        // as __PHP_Incomplete_Class, which violates the : BirthCertificate return
+        // type and 500s on a cache hit.
+        return BirthCertificate::with(['citizen', 'mother', 'father', 'officer', 'images'])
+            ->findOrFail($id);
     }
 
     public function update(int $id, array $data): BirthCertificate

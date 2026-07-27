@@ -22,6 +22,9 @@ class BirthCertificateController extends Controller
         $certs = QueryBuilder::for(BirthCertificate::class)
             ->allowedFilters('status', AllowedFilter::exact('citizen_id'))
             ->allowedSorts('issue_date', 'registered_date')
+            // Newest first by default so a just-registered certificate lands on
+            // page 1 (the frontend only loads page 1 for its list/search).
+            ->defaultSort('-certificate_id')
             ->with(['citizen', 'officer'])
             ->paginate($request->get('per_page', 20));
 
@@ -43,12 +46,10 @@ class BirthCertificateController extends Controller
 
     public function show(int $id)
     {
-        $cert = Cache::tags(['birth_certificates'])->remember(
-            "birth_cert:{$id}",
-            now()->addMinutes(10),
-            fn () => BirthCertificate::with(['citizen', 'mother', 'father', 'officer', 'images'])
-                ->findOrFail($id)
-        );
+        // NOTE: do not cache the Eloquent model — this cache store deserializes it
+        // as __PHP_Incomplete_Class, which 500s BirthCertificateResource on a cache hit.
+        $cert = BirthCertificate::with(['citizen', 'mother', 'father', 'officer', 'images'])
+            ->findOrFail($id);
 
         return new BirthCertificateResource($cert);
     }

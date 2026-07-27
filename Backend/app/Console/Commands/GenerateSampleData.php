@@ -27,6 +27,7 @@ class GenerateSampleData extends Command
         {--card-rate=0.5 : Fraction of adult citizens that get an ID card}
         {--households=20000 : Number of households to create}
         {--families=0 : Number of family units to create (uses existing citizens as heads + members)}
+        {--only-families : Generate ONLY family units on top of the existing dataset (skips citizens/households/etc.)}
         {--mongo=1 : Also generate MongoDB documents (1/0)}
         {--fresh : Truncate the generated tables before inserting}';
 
@@ -48,6 +49,17 @@ class GenerateSampleData extends Command
     {
         $count = (int) $this->option('citizens');
         $run = now()->format('ymdHis');
+
+        // Families-only mode: add family units on top of an already-seeded dataset
+        // (e.g. when relationship_types was seeded after the initial data load).
+        if ($this->option('only-families')) {
+            $familyN = (int) $this->option('families') ?: 2000;
+            $this->generateFamilies($familyN, $run);
+            $this->newLine();
+            $this->info('✅ Family generation complete.');
+
+            return self::SUCCESS;
+        }
 
         if ($this->option('fresh')) {
             $this->warn('Truncating generated tables…');
