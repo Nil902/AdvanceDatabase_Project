@@ -15,20 +15,6 @@ for i in $(seq 1 30); do
     sleep 2
 done
 
-# --- pgBadger report gate (HTTP Basic Auth) --------------------------------
-# /pgbadger/ (proxied to the pgbadger-web container by nginx) exposes reports
-# containing PII, so it is Basic-Auth protected. Credentials come from the
-# off-repo env file; if the password is unset, generate a random one so the
-# endpoint is locked by default rather than left open.
-PGB_USER="${PGBADGER_AUTH_USER:-pgbadger}"
-PGB_PASS="${PGBADGER_AUTH_PASSWORD:-}"
-if [ -z "$PGB_PASS" ]; then
-    PGB_PASS="$(head -c 18 /dev/urandom | base64)"
-    echo "PGBADGER_AUTH_PASSWORD not set — generated a random one (reports locked)."
-fi
-htpasswd -bc /etc/nginx/pgbadger.htpasswd "$PGB_USER" "$PGB_PASS" >/dev/null 2>&1
-echo "pgBadger report access configured for user '${PGB_USER}'."
-
 # --- Laravel cache/config warm-up -----------------------------------------
 php artisan config:cache
 php artisan route:cache
