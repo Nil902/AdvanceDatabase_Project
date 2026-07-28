@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\BirthCertificate;
 
+use App\Models\BirthCertificate;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateBirthCertificateRequest extends FormRequest
@@ -25,6 +27,29 @@ class UpdateBirthCertificateRequest extends FormRequest
             'registered_date' => 'nullable|date',
             'status' => 'sometimes|in:issued,reprinted,cancelled',
             'remarks' => 'nullable|string',
+            // A correction to an already-verified certificate must state why.
+            'amendment_reason' => 'nullable|string|max:500',
         ];
+    }
+
+    /**
+     * Amending a verified certificate is a formal correction: it requires a
+     * stated reason (which is stored and clears the prior verification).
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $cert = BirthCertificate::find($this->route('id'));
+            if ($cert && $cert->verified_at !== null && blank($this->input('amendment_reason'))) {
+                $validator->errors()->add(
+                    'amendment_reason',
+                    'This certificate is verified; an amendment reason is required to change it.'
+                );
+            }
+        });
     }
 }

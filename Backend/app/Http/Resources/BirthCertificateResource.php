@@ -17,6 +17,11 @@ class BirthCertificateResource extends JsonResource
             'registered_date' => $this->registered_date?->toDateString(),
             'remarks' => $this->remarks,
             'has_photo' => (bool) $this->photo_path,
+            // Phase 6 verification workflow
+            'is_verified' => $this->verified_at !== null,
+            'verified_at' => $this->verified_at?->toISOString(),
+            'verified_by' => $this->whenLoaded('verifiedBy', fn () => $this->verifiedBy?->full_name_en),
+            'last_amendment_reason' => $this->last_amendment_reason,
             // Phase 4.3 certificate detail
             'time_of_birth' => $this->time_of_birth,
             'birth_place_type' => $this->birth_place_type,
