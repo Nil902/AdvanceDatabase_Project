@@ -20,11 +20,14 @@ class BirthCertificate extends Model
         'birth_order', 'is_live_birth', 'parents_marital_status',
         'marriage_cert_reference', 'registration_type', 'registration_justification',
         'registry_book_volume', 'registry_book_page', 'registry_book_entry',
+        // Phase 6 verification workflow
+        'verified_at', 'verified_by', 'last_amendment_reason',
     ];
 
     protected $casts = [
         'issue_date' => 'datetime',
         'registered_date' => 'datetime',
+        'verified_at' => 'datetime',
         'is_live_birth' => 'boolean',
         'birth_weight_grams' => 'integer',
         'gestational_age_weeks' => 'integer',
@@ -46,6 +49,11 @@ class BirthCertificate extends Model
     public function father()
     {
         return $this->belongsTo(Citizen::class, 'father_citizen_id', 'citizen_id');
+    }
+
+    public function verifiedBy()
+    {
+        return $this->belongsTo(SystemUser::class, 'verified_by', 'user_id');
     }
 
     // Canonical parent links (Phase 4.2) — a parents row, which may itself

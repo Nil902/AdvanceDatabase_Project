@@ -22,7 +22,7 @@ class BirthCertificateController extends Controller
     // Canonical parent records, plus the legacy citizen links as a fallback for
     // certificates not yet run through birth-certs:backfill-parents.
     private const PARENT_LOADS = [
-        'citizen', 'officer.activeStamp', 'informant',
+        'citizen', 'officer.activeStamp', 'informant', 'verifiedBy',
         'motherParent.citizen', 'fatherParent.citizen', 'mother', 'father',
     ];
 
@@ -81,7 +81,19 @@ class BirthCertificateController extends Controller
     public function update(UpdateBirthCertificateRequest $request, int $id)
     {
         $cert = BirthCertificate::findOrFail($id);
-        $cert->update($request->validated());
+        $data = $request->validated();
+        $reason = $data['amendment_reason'] ?? null;
+        unset($data['amendment_reason']);
+
+        // Amending a record invalidates any prior verification — the corrected
+        // certificate must be re-verified before it counts as confirmed again.
+        if ($cert->verified_at !== null && ! empty($data)) {
+            $data['verified_at'] = null;
+            $data['verified_by'] = null;
+            $data['last_amendment_reason'] = $reason;
+        }
+
+        $cert->update($data);
 
         Cache::tags(['birth_certificates'])->forget("birth_cert:{$id}");
 
@@ -98,12 +110,24 @@ class BirthCertificateController extends Controller
         return response()->json(['message' => 'Certificate voided'], 200);
     }
 
-    public function verify(int $id)
+    // POST /birth-certificates/{id}/verify — an authorized officer confirms the
+    // record. Records who verified and when; a cancelled record can't be verified,
+    // and verifying an already-verified record is a no-op (keeps the first stamp).
+    public function verify(Request $request, int $id)
     {
         $cert = BirthCertificate::findOrFail($id);
 
-        // Add actual verification logic (e.g., check officer stamp, signature)
-        return response()->json(['verified' => true, 'certificate_id' => $cert->certificate_id]);
+        abort_if($cert->status === 'cancelled', 422, 'A cancelled certificate cannot be verified.');
+
+        if ($cert->verified_at === null) {
+            $cert->update([
+                'verified_at' => now(),
+                'verified_by' => $request->user()->user_id,
+            ]);
+            Cache::tags(['birth_certificates'])->forget("birth_cert:{$id}");
+        }
+
+        return new BirthCertificateResource($cert->fresh(self::PARENT_LOADS));
     }
 
     public function print(int $id)
