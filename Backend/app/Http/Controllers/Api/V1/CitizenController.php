@@ -12,6 +12,7 @@ use App\Http\Resources\CitizenResource;
 use App\Jobs\LogReadEvent;
 use App\Models\Citizen;
 use App\Services\CitizenService;
+use App\Services\JurisdictionScope;
 use Illuminate\Http\Request;
 
 class CitizenController extends Controller
@@ -21,7 +22,7 @@ class CitizenController extends Controller
     ) {}
 
     // GET /citizens/search?q= — type-ahead lookup by name (KH/EN) or national id.
-    public function search(Request $request)
+    public function search(Request $request, JurisdictionScope $jurisdiction)
     {
         $q = trim((string) $request->get('q', ''));
 
@@ -29,12 +30,16 @@ class CitizenController extends Controller
             return CitizenResource::collection([]);
         }
 
-        $citizens = Citizen::query()
+        $query = Citizen::query()
             ->where(function ($query) use ($q) {
                 $query->where('full_name_en', 'ILIKE', "%{$q}%")
                     ->orWhere('full_name_kh', 'LIKE', "%{$q}%")
                     ->orWhere('national_id_number', 'ILIKE', "%{$q}%");
-            })
+            });
+
+        // Phase 9: confine a scoped officer's lookups to their commune (no-op for
+        // admins / unscoped accounts), via birth_place_village_id.
+        $citizens = $jurisdiction->byVillageColumn($query, $request->user(), 'birth_place_village_id')
             ->orderBy('full_name_en')
             ->limit((int) $request->get('limit', 10))
             ->get();

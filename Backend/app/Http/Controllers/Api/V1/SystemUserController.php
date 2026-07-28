@@ -59,6 +59,8 @@ class SystemUserController extends Controller
             'phone_number' => 'nullable|string|max:30',
             'role_id' => 'required|integer|exists:user_roles,role_id',
             'is_active' => 'boolean',
+            // Phase 9: the officer's jurisdiction. null/omitted = national access.
+            'commune_id' => 'nullable|integer|exists:communes,commune_id',
         ]);
 
         $user = SystemUser::create([
@@ -70,6 +72,7 @@ class SystemUserController extends Controller
             'phone_number' => $data['phone_number'] ?? null,
             'role_id' => $data['role_id'],
             'is_active' => $data['is_active'] ?? true,
+            'commune_id' => $data['commune_id'] ?? null,
             'created_by' => $request->user()->user_id,
         ]);
 
@@ -90,6 +93,8 @@ class SystemUserController extends Controller
             'phone_number' => 'nullable|string|max:30',
             'role_id' => 'sometimes|integer|exists:user_roles,role_id',
             'is_active' => 'boolean',
+            // Phase 9: assign the officer's jurisdiction. null = national access.
+            'commune_id' => 'sometimes|nullable|integer|exists:communes,commune_id',
         ]);
 
         $user->fill(collect($data)->except('password')->all());

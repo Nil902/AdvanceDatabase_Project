@@ -12,6 +12,7 @@ use App\Http\Resources\HouseholdMemberResource;
 use App\Http\Resources\HouseholdResource;
 use App\Models\Household;
 use App\Services\HouseholdService;
+use App\Services\JurisdictionScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -24,9 +25,13 @@ class HouseholdController extends Controller
     ) {}
 
     // GET /households — paginated residency-book ledger with head + live member count.
-    public function index(Request $request)
+    public function index(Request $request, JurisdictionScope $jurisdiction)
     {
-        $households = QueryBuilder::for(Household::class)
+        // Phase 9: constrain to the officer's commune (no-op for admins /
+        // unscoped accounts). Households anchor on their own village_id.
+        $base = $jurisdiction->byVillageColumn(Household::query(), $request->user(), 'village_id');
+
+        $households = QueryBuilder::for($base)
             ->allowedFilters(
                 AllowedFilter::exact('village_id'),
                 AllowedFilter::exact('is_active'),

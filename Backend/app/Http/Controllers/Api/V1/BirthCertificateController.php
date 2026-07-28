@@ -9,6 +9,7 @@ use App\Http\Resources\BirthCertificateResource;
 use App\Jobs\EnqueueCertificatePrint;
 use App\Jobs\LogReadEvent;
 use App\Models\BirthCertificate;
+use App\Services\JurisdictionScope;
 use App\Services\ParentResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -26,9 +27,13 @@ class BirthCertificateController extends Controller
         'motherParent.citizen', 'fatherParent.citizen', 'mother', 'father',
     ];
 
-    public function index(Request $request)
+    public function index(Request $request, JurisdictionScope $jurisdiction)
     {
-        $certs = QueryBuilder::for(BirthCertificate::class)
+        // Phase 9: constrain to the officer's commune (no-op for admins /
+        // unscoped accounts), via the child's birth_place_village_id.
+        $base = $jurisdiction->byRelatedVillage(BirthCertificate::query(), $request->user(), 'citizen');
+
+        $certs = QueryBuilder::for($base)
             ->allowedFilters('status', AllowedFilter::exact('citizen_id'))
             ->allowedSorts('issue_date', 'registered_date')
             // Newest first by default so a just-registered certificate lands on
