@@ -69,3 +69,36 @@ provisioned once, by hand. **Take a `pg_dump` and `mongodump` first.**
    ```
 4. Only then switch `DB_USERNAME` to `civil_app` in the env file and restart the
    `app` service.
+
+## Jurisdictional scoping (Phase 9)
+
+Registry staff can be confined to a single **commune** so they only see records
+within their jurisdiction. The model is **safe opt-in** — nothing changes for an
+account until it is given a commune:
+
+- **Admins** (a token carrying the `*` ability) are **never** scoped.
+- An account with **`commune_id = NULL`** keeps **national** (unscoped) access.
+- A **non-admin with a commune assigned** is confined to that commune on the
+  read surfaces: `GET /households`, `GET /birth-certificates`, and
+  `GET /citizens/search`.
+
+A record's jurisdiction is its village's commune: households anchor on their own
+`village_id`; citizens and birth certificates anchor on the citizen's
+`birth_place_village_id`. The logic lives in `App\Services\JurisdictionScope`.
+
+Assign (or clear) a commune as an admin:
+
+```bash
+# assign officer #12 to commune #340
+curl -X PUT https://<host>/api/v1/admin/users/12 \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"commune_id": 340}'
+
+# revert to national access
+#   -d '{"commune_id": null}'
+```
+
+> Note: abilities are baked into the token at login, but `commune_id` is read
+> live from the account on each request, so a scope change takes effect on the
+> officer's next API call (no re-login required).
