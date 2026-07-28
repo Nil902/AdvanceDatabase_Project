@@ -32,6 +32,7 @@ FROM php:8.3-fpm-alpine AS app
 RUN apk add --no-cache \
     nginx \
     supervisor \
+    apache2-utils \
     bash \
     curl \
     git \

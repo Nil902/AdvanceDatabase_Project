@@ -57,11 +57,15 @@ services:
       MAIL_FROM_NAME: CivilRegistry
       # Migrations are NOT run on container boot anymore — they run as an explicit,
       # backed-up deploy step (deploy/migrate.sh) as the DB superuser.
-      PGBADGER_URL: http://134.209.105.170:8081
+      # pgBadger reports are reverse-proxied at /pgbadger/ on this same host
+      # (port 80), behind Basic Auth. PGBADGER_AUTH_USER / PGBADGER_AUTH_PASSWORD
+      # come from the off-repo env file above (see deploy/env.production.example).
+      PGBADGER_URL: http://134.209.105.170/pgbadger
     depends_on:
       - postgres
       - mongo
       - redis
+      - pgbadger-web
     volumes:
       - app-storage:/var/www/html/storage/app
       - app-logs:/var/www/html/storage/logs

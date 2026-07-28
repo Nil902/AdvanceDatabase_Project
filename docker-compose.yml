@@ -46,10 +46,15 @@ services:
       SESSION_DRIVER: redis
       QUEUE_CONNECTION: redis
       RUN_MIGRATIONS: "true"
+      # Local-only Basic Auth for the /pgbadger/ proxy (not a secret in dev).
+      PGBADGER_AUTH_USER: pgbadger
+      PGBADGER_AUTH_PASSWORD: pgbadger
+      PGBADGER_URL: http://localhost:8000/pgbadger
     depends_on:
       - postgres
       - mongo
       - redis
+      - pgbadger-web
     volumes:
       - backend-storage:/var/www/html/storage/app
     restart: unless-stopped

@@ -162,16 +162,16 @@ class PerformanceController extends Controller
     // GET /api/v1/admin/performance/pgbadger
     public function pgbadger(Request $request): JsonResponse
     {
-        // pgBadger reports are served by a dedicated nginx container on port 8081
-        // of the deployment host (see docker-compose.prod.yml). Build the URL
-        // from the incoming request host so it works in any environment.
-        $host = $request->getHost();
-        $url = env('PGBADGER_URL', "http://{$host}:8081");
+        // pgBadger reports are reverse-proxied by the app's nginx at /pgbadger/
+        // (gated with HTTP Basic Auth — the reports contain PII query text) and
+        // served by the pgbadger-web container. Default to the same host the
+        // request came in on so it works in any environment.
+        $url = env('PGBADGER_URL', $request->getSchemeAndHttpHost().'/pgbadger');
 
         return response()->json([
             'url' => $url,
             'index_url' => rtrim($url, '/').'/index.html',
-            'description' => 'pgBadger analyses PostgreSQL logs and is regenerated automatically every hour (full report nightly).',
+            'description' => 'pgBadger analyses PostgreSQL logs and is regenerated automatically every hour (full report nightly). Access is protected by HTTP Basic Auth — use the credentials issued by your administrator.',
         ]);
     }
 }
