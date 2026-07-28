@@ -4,43 +4,64 @@ import {
   Users,
   CreditCard,
   BookOpen,
-  AlertTriangle,
   Clock,
   ArrowRight,
   TrendingUp,
   ShieldCheck,
   MapPin,
+  HeartHandshake,
 } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { moduleMeta, toneDot } from '../constants';
 import type { BreakdownEntry, ModuleKey } from '../types';
 
 // ---------------------------------------------------------------------------
-// OVERVIEW DATA
-// Backed by a single aggregate call — GET /api/v1/reports/summary — which
-// returns pre-computed counts (cached server-side). We never fetch full record
-// lists on the home screen just to count them.
+// OVERVIEW DATA — all live.
+//   KPIs / module cards  ← GET /api/v1/reports/summary (cached aggregate counts)
+//   Recent activity      ← GET /api/v1/admin/audit-logs (the real audit trail)
+// No fabricated figures: every number shown is returned by the API.
 // ---------------------------------------------------------------------------
 interface OverviewSummary {
-  birth: { total: number; registered: number; missingCert: number };
-  nid: { total: number; active: number; suspended: number; disabled: number; undelivered: number };
-  residency: { books: number; residents: number };
-  family: { households: number; dependents: number };
+  citizens: number;
+  births: number;
+  marriages: number;
+  households: number;
+  activeCards: number;
 }
 
-interface ActivityItem {
-  id: string;
-  module: ModuleKey;
+// One row from AuditLogController@index.
+interface AuditRow {
+  id: number;
   action: string;
+  target_table: string | null;
+  target_id: number | null;
   actor: string;
-  time: string;
+  performed_at: string | null;
 }
 
-interface AttentionItem {
-  id: string;
-  module: ModuleKey;
-  label: string;
-  count: number;
+// Pick the module icon that best represents an audited table.
+function moduleForTable(table: string | null): ModuleKey {
+  switch (table) {
+    case 'birth_certificates': return 'birth';
+    case 'identity_cards': return 'nid';
+    case 'households':
+    case 'household_members': return 'residency';
+    default: return 'family';
+  }
+}
+
+function activityLabel(row: AuditRow): string {
+  const verb = row.action.charAt(0).toUpperCase() + row.action.slice(1);
+  if (row.action === 'login' || row.action === 'logout') return verb;
+  if (!row.target_table) return verb;
+  const entity = row.target_table.replace(/_/g, ' ').replace(/s$/, '');
+  return row.target_id ? `${verb} ${entity} #${row.target_id}` : `${verb} ${entity}`;
+}
+
+function formatWhen(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso.replace(' ', 'T'));
+  return isNaN(d.getTime()) ? iso : d.toLocaleString();
 }
 
 function KpiCard({
@@ -132,32 +153,27 @@ export function OverviewTab({ onNavigate }: { onNavigate: (module: ModuleKey) =>
   const go = (module: ModuleKey) => () => onNavigate(module);
 
   const [summary, setSummary] = useState<OverviewSummary>({
-    birth: { total: 0, registered: 0, missingCert: 0 },
-    nid: { total: 0, active: 0, suspended: 0, disabled: 0, undelivered: 0 },
-    residency: { books: 0, residents: 0 },
-    family: { households: 0, dependents: 0 },
+    citizens: 0, births: 0, marriages: 0, households: 0, activeCards: 0,
   });
-  const [recentActivity] = useState<ActivityItem[]>([]);
+  const [recentActivity, setRecentActivity] = useState<AuditRow[]>([]);
 
   useEffect(() => {
-    // Keys match ReportController@summary (total_citizens, total_birth_certificates, …).
+    // Keys match ReportController@summary.
     api.get<any>('/reports/summary').then((data) => {
       setSummary({
-        birth: { total: data.total_birth_certificates ?? 0, registered: data.total_birth_certificates ?? 0, missingCert: 0 },
-        nid: { total: data.total_active_id_cards ?? 0, active: data.total_active_id_cards ?? 0, suspended: 0, disabled: 0, undelivered: 0 },
-        residency: { books: data.total_households ?? 0, residents: data.total_citizens ?? 0 },
-        family: { households: data.total_households ?? 0, dependents: data.total_citizens ?? 0 },
+        citizens: data.total_citizens ?? 0,
+        births: data.total_birth_certificates ?? 0,
+        marriages: data.total_marriages ?? 0,
+        households: data.total_households ?? 0,
+        activeCards: data.total_active_id_cards ?? 0,
       });
     }).catch(() => {});
+
+    // Real activity feed straight from the audit trail.
+    api.get<{ data: AuditRow[] }>('/admin/audit-logs', { per_page: 8 })
+      .then((res) => setRecentActivity(res.data))
+      .catch(() => {});
   }, []);
-
-  const attention: AttentionItem[] = [
-    { id: 't1', module: 'nid', label: 'Cards printed but not delivered', count: summary.nid.undelivered },
-    { id: 't2', module: 'birth', label: 'Citizens with no birth certificate', count: summary.birth.missingCert },
-    { id: 't3', module: 'nid', label: 'Suspended NID cards under review', count: summary.nid.suspended },
-  ];
-
-  const pendingActions = summary.nid.undelivered + summary.birth.missingCert;
 
   return (
     <div className="space-y-8">
@@ -170,106 +186,72 @@ export function OverviewTab({ onNavigate }: { onNavigate: (module: ModuleKey) =>
 
       {/* KPI ROW */}
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard icon={Users} tileBg="bg-blue-50" tileText="text-blue-600" label="Registered Citizens" value={summary.residency.residents.toLocaleString()} hint="Total on record" hintIcon={TrendingUp} />
-        <KpiCard icon={CreditCard} tileBg="bg-purple-50" tileText="text-purple-600" label="Smart NID Cards Issued" value={summary.nid.total.toLocaleString()} hint={`${summary.nid.active.toLocaleString()} active`} hintIcon={ShieldCheck} />
-        <KpiCard icon={BookOpen} tileBg="bg-amber-50" tileText="text-amber-600" label="Household Residency Books" value={summary.residency.books.toLocaleString()} hint={`${summary.residency.residents.toLocaleString()} residents`} hintIcon={MapPin} />
-        <KpiCard icon={AlertTriangle} tileBg="bg-rose-50" tileText="text-rose-600" label="Pending Actions" value={pendingActions.toLocaleString()} hint="Needs attention" hintIcon={Clock} />
+        <KpiCard icon={Users} tileBg="bg-blue-50" tileText="text-blue-600" label="Registered Citizens" value={summary.citizens.toLocaleString()} hint="Total on record" hintIcon={TrendingUp} />
+        <KpiCard icon={CreditCard} tileBg="bg-purple-50" tileText="text-purple-600" label="Active NID Cards" value={summary.activeCards.toLocaleString()} hint="Currently valid" hintIcon={ShieldCheck} />
+        <KpiCard icon={BookOpen} tileBg="bg-amber-50" tileText="text-amber-600" label="Household Books" value={summary.households.toLocaleString()} hint="Active residency books" hintIcon={MapPin} />
+        <KpiCard icon={HeartHandshake} tileBg="bg-emerald-50" tileText="text-emerald-600" label="Active Marriages" value={summary.marriages.toLocaleString()} hint="Registered unions" hintIcon={TrendingUp} />
       </div>
 
       {/* MODULE CARDS */}
       <div className="grid grid-cols-4 gap-4">
         <ModuleCard
           module="birth"
-          primary={`${summary.birth.total.toLocaleString()} records`}
+          primary={`${summary.births.toLocaleString()} certificates`}
           onOpen={go('birth')}
-          breakdown={[
-            { label: 'Registered', value: summary.birth.registered, tone: 'good' },
-            { label: 'No certificate', value: summary.birth.missingCert, tone: 'warn' },
-          ]}
+          breakdown={[{ label: 'Registered citizens', value: summary.citizens, tone: 'good' }]}
         />
         <ModuleCard
           module="nid"
-          primary={`${summary.nid.total.toLocaleString()} cards`}
+          primary={`${summary.activeCards.toLocaleString()} active cards`}
           onOpen={go('nid')}
-          breakdown={[
-            { label: 'Active', value: summary.nid.active, tone: 'good' },
-            { label: 'Suspended', value: summary.nid.suspended, tone: 'warn' },
-            { label: 'Disabled', value: summary.nid.disabled, tone: 'bad' },
-          ]}
+          breakdown={[]}
         />
         <ModuleCard
           module="residency"
-          primary={`${summary.residency.books.toLocaleString()} books`}
+          primary={`${summary.households.toLocaleString()} books`}
           onOpen={go('residency')}
-          breakdown={[{ label: 'Residents', value: summary.residency.residents, tone: 'neutral' }]}
+          breakdown={[{ label: 'Residents', value: summary.citizens, tone: 'neutral' }]}
         />
         <ModuleCard
           module="family"
-          primary={`${summary.family.households.toLocaleString()} households`}
+          primary={`${summary.households.toLocaleString()} households`}
           onOpen={go('family')}
-          breakdown={[{ label: 'Dependents', value: summary.family.dependents, tone: 'neutral' }]}
+          breakdown={[{ label: 'Active marriages', value: summary.marriages, tone: 'neutral' }]}
         />
       </div>
 
-      {/* ACTIVITY + ATTENTION */}
-      <div className="grid grid-cols-3 gap-6 items-start">
-        <div className="col-span-2 rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-slate-600" />
-              <h2 className="text-sm font-bold text-slate-900">Recent Registry Activity</h2>
-            </div>
-            <span className="text-[11px] text-slate-400">Last 24 hours</span>
+      {/* RECENT ACTIVITY (live audit trail) */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-slate-600" />
+            <h2 className="text-sm font-bold text-slate-900">Recent Registry Activity</h2>
           </div>
-          <div className="divide-y divide-slate-100">
-            {recentActivity.length === 0 && (
-              <div className="flex flex-col items-center justify-center gap-2 px-6 py-12 text-center">
-                <Clock className="h-6 w-6 text-slate-300" />
-                <p className="text-xs font-medium text-slate-400">No registry activity in the last 24 hours.</p>
-              </div>
-            )}
-            {recentActivity.map((item) => {
-              const meta = moduleMeta[item.module];
-              const Icon = meta.icon;
-              return (
-                <div key={item.id} className="flex items-center gap-3 px-6 py-3.5 hover:bg-slate-50/50 transition">
-                  <div className={`rounded-lg ${meta.tileBg} ${meta.tileText} p-2 shrink-0`}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-semibold text-slate-800">{item.action}</p>
-                    <p className="text-[11px] text-slate-400">by {item.actor}</p>
-                  </div>
-                  <span className="shrink-0 text-[11px] font-medium text-slate-400">{item.time}</span>
-                </div>
-              );
-            })}
-          </div>
+          <span className="text-[11px] text-slate-400">Latest {recentActivity.length} events</span>
         </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center gap-2 border-b border-slate-100 px-6 py-4">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <h2 className="text-sm font-bold text-slate-900">Attention Required</h2>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {attention.map((item) => {
-              const meta = moduleMeta[item.module];
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={go(item.module)}
-                  className="flex w-full items-center justify-between gap-3 px-6 py-4 text-left hover:bg-slate-50/50 transition"
-                >
-                  <span className="text-xs font-medium text-slate-600 leading-snug">{item.label}</span>
-                  <span className={`shrink-0 rounded-lg ${meta.tileBg} ${meta.tileText} px-2.5 py-1 text-xs font-bold`}>
-                    {item.count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+        <div className="divide-y divide-slate-100">
+          {recentActivity.length === 0 && (
+            <div className="flex flex-col items-center justify-center gap-2 px-6 py-12 text-center">
+              <Clock className="h-6 w-6 text-slate-300" />
+              <p className="text-xs font-medium text-slate-400">No registry activity recorded yet.</p>
+            </div>
+          )}
+          {recentActivity.map((item) => {
+            const meta = moduleMeta[moduleForTable(item.target_table)];
+            const Icon = meta.icon;
+            return (
+              <div key={item.id} className="flex items-center gap-3 px-6 py-3.5 hover:bg-slate-50/50 transition">
+                <div className={`rounded-lg ${meta.tileBg} ${meta.tileText} p-2 shrink-0`}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-semibold text-slate-800">{activityLabel(item)}</p>
+                  <p className="text-[11px] text-slate-400">by {item.actor}</p>
+                </div>
+                <span className="shrink-0 text-[11px] font-medium text-slate-400">{formatWhen(item.performed_at)}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

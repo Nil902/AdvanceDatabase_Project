@@ -33,10 +33,10 @@ export function ProfileSettingsTab({ profile }: { profile: ProfileForm }) {
             </label>
           </div>
           <div>
-            <h3 className="font-bold text-slate-900 text-sm">{profile.name}</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">Clearance Level: 5</p>
+            <h3 className="font-bold text-slate-900 text-sm">{profile.name || '—'}</h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">{profile.email || '—'}</p>
           </div>
-          <span className="inline-flex w-full justify-center rounded-lg bg-blue-50 py-2 text-[10px] font-bold uppercase tracking-widest text-blue-700">Root Superuser Access</span>
+          <span className="inline-flex w-full justify-center rounded-lg bg-blue-50 py-2 text-[10px] font-bold uppercase tracking-widest text-blue-700">{profile.roleName}</span>
         </div>
 
         <div className="col-span-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -78,20 +78,10 @@ export function ProfileSettingsTab({ profile }: { profile: ProfileForm }) {
                 )}
               </div>
 
-              {/* Assigned Headquarters Zone */}
+              {/* Role (read-only — assigned by an administrator) */}
               <div className="space-y-1.5">
-                <label htmlFor="p-zone" className="text-[11px] font-semibold text-slate-400 block">Assigned Headquarters Regional Zone</label>
-                {isEditing ? (
-                  <input id="p-zone" type="text" value={profile.zone} onChange={(e) => profile.setZone(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-xs font-bold text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white" />
-                ) : (
-                  <div className="w-full rounded-lg border border-slate-200 bg-slate-50/50 py-2 px-3 text-xs font-bold text-slate-600 select-all">{profile.zone}</div>
-                )}
-              </div>
-
-              {/* Read-Only Hardware Node Token */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-slate-400 block">Hardware Token ID</label>
-                <div className="w-full rounded-lg border border-slate-200 bg-slate-100/70 py-2 px-3 text-xs font-bold text-slate-400 select-all">NIMS-NODE-0491-X</div>
+                <label className="text-[11px] font-semibold text-slate-400 block">Assigned Role</label>
+                <div className="w-full rounded-lg border border-slate-200 bg-slate-100/70 py-2 px-3 text-xs font-bold text-slate-500 select-all">{profile.roleName}</div>
               </div>
 
               {/* Master Passcode */}

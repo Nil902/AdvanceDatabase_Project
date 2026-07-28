@@ -26,6 +26,8 @@ export default function DashboardPage() {
         onTabChange={setCurrentTab}
         profileName={profile.name}
         profileEmail={profile.email}
+        profileRole={profile.roleName}
+        profileAvatarUrl={profile.avatarUrl}
       >
         {currentTab === 'overview' && <OverviewTab onNavigate={goToModule} />}
         {currentTab === 'users' && <UserManagementTab users={users} />}

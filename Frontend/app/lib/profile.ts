@@ -10,6 +10,7 @@ interface StoredProfile {
   email?: string | null;
   phone_number?: string | null;
   has_avatar?: boolean;
+  role?: { role_code?: string | null; role_name?: string | null } | null;
 }
 
 // Manages the self-service profile fields plus the edit/cancel/save lifecycle.
@@ -29,6 +30,10 @@ export function useProfileForm() {
   const [phone, setPhone] = useState(stored?.phone_number ?? '');
   const [zone, setZone] = useState('');
   const [password, setPassword] = useState('');
+
+  // The account's real role (from the stored session), used for the read-only
+  // role/clearance labels — no fabricated "Clearance Level 5".
+  const roleName = stored?.role?.role_name ?? stored?.role?.role_code ?? 'Operator';
 
   const [backup, setBackup] = useState({ name, email, phone, zone });
 
@@ -122,6 +127,7 @@ export function useProfileForm() {
     cancelEditing,
     saveProfile,
     avatarUrl, hasAvatar, uploadingAvatar, uploadAvatar,
+    roleName,
   };
 }
 

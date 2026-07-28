@@ -26,12 +26,16 @@ export function DashboardLayout({
   onTabChange,
   profileName,
   profileEmail,
+  profileRole,
+  profileAvatarUrl,
   children,
 }: {
   currentTab: DashboardTab;
   onTabChange: (tab: DashboardTab) => void;
   profileName: string;
   profileEmail: string;
+  profileRole: string;
+  profileAvatarUrl?: string | null;
   children: React.ReactNode;
 }) {
   return (
@@ -41,11 +45,11 @@ export function DashboardLayout({
       <aside className="fixed inset-y-0 left-0 flex w-64 flex-col justify-between border-r border-slate-200 bg-white p-5 shadow-sm z-20">
         <div className="space-y-7">
           <div className="flex items-center gap-3 border-b border-slate-100 pb-5">
-            <img src={DEFAULT_AVATAR} alt="Admin Avatar" className="h-9 w-9 rounded-lg object-cover" />
+            <img src={profileAvatarUrl ?? DEFAULT_AVATAR} alt="Profile avatar" className="h-9 w-9 rounded-lg object-cover" />
             <div>
               <h4 className="text-xs font-bold tracking-tight text-slate-900">{profileName}</h4>
               <p className="text-[11px] text-slate-500">{profileEmail}</p>
-              <span className="mt-1 inline-flex items-center rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-blue-700">Superuser</span>
+              <span className="mt-1 inline-flex items-center rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-blue-700">{profileRole}</span>
             </div>
           </div>
 
