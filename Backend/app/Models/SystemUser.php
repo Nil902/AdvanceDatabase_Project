@@ -15,7 +15,7 @@ class SystemUser extends Model implements Authenticatable
 
     protected $fillable = [
         'username', 'email', 'password_hash', 'full_name_kh', 'full_name_en',
-        'role_id', 'officer_id', 'commune_id', 'phone_number', 'avatar_url',
+        'role_id', 'officer_id', 'commune_id', 'phone_number', 'avatar_url', 'avatar_path',
         'is_active', 'email_verified_at', 'last_login_at', 'last_login_ip',
         'password_changed_at', 'must_change_password', 'failed_login_attempts',
         'locked_until', 'created_by',

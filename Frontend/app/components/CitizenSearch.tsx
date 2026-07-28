@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Search, Loader2, X } from 'lucide-react';
 import { api } from '~/lib/api';
+import { CitizenAvatar } from './CitizenAvatar';
 
 export interface CitizenOption {
   id: number;
   national_id_number: string | null;
   full_name_kh: string | null;
   full_name_en: string | null;
+  has_photo?: boolean;
 }
 
 function displayName(c: CitizenOption): string {
@@ -89,10 +91,13 @@ export function CitizenSearch({
 
   if (selected) {
     return (
-      <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-slate-800">{displayName(selected)}</p>
-          <p className="text-[11px] text-slate-500">NID: {selected.national_id_number ?? '—'}</p>
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+        <div className="flex min-w-0 items-center gap-3">
+          <CitizenAvatar id={selected.id} hasPhoto={selected.has_photo} name={selected.full_name_en || selected.full_name_kh} />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-slate-800">{displayName(selected)}</p>
+            <p className="text-[11px] text-slate-500">NID: {selected.national_id_number ?? '—'}</p>
+          </div>
         </div>
         <button type="button" onClick={() => { onSelect(null); setQ(''); }} className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700">
           <X className="h-4 w-4" />
@@ -125,10 +130,13 @@ export function CitizenSearch({
               type="button"
               onMouseEnter={() => setActiveIndex(i)}
               onClick={() => choose(c)}
-              className={`flex w-full flex-col items-start px-3 py-2 text-left ${i === activeIndex ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
+              className={`flex w-full items-center gap-3 px-3 py-2 text-left ${i === activeIndex ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
             >
-              <span className="text-sm font-semibold text-slate-800">{displayName(c)}</span>
-              <span className="text-[11px] text-slate-500">NID: {c.national_id_number ?? '—'}</span>
+              <CitizenAvatar id={c.id} hasPhoto={c.has_photo} name={c.full_name_en || c.full_name_kh} size="sm" />
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate text-sm font-semibold text-slate-800">{displayName(c)}</span>
+                <span className="text-[11px] text-slate-500">NID: {c.national_id_number ?? '—'}</span>
+              </span>
             </button>
           ))}
         </div>

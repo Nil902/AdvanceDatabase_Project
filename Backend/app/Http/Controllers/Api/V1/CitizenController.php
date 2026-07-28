@@ -14,6 +14,7 @@ use App\Models\Citizen;
 use App\Services\CitizenService;
 use App\Services\JurisdictionScope;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class CitizenController extends Controller
 {
@@ -69,14 +70,31 @@ class CitizenController extends Controller
 
     public function uploadPhoto(PhotoUploadRequest $request, int $id)
     {
-        $this->citizenService->findById($id);
+        $citizen = $this->citizenService->findById($id);
+
+        // Replace any prior portrait so we don't orphan files on the disk.
+        if ($citizen->photo_path) {
+            Storage::disk('public')->delete($citizen->photo_path);
+        }
 
         $path = $request->file('photo')->store("citizens/{$id}/photos", 'public');
+        $citizen->update(['photo_path' => $path]);
 
         return response()->json([
             'message' => 'Photo uploaded successfully',
             'path' => $path,
         ], 200);
+    }
+
+    // GET /citizens/{id}/photo — stream the stored portrait (auth-guarded; a face
+    // photo is PII, so it is never exposed as a public URL).
+    public function photo(int $id)
+    {
+        $citizen = $this->citizenService->findById($id);
+
+        abort_if(! $citizen->photo_path || ! Storage::disk('public')->exists($citizen->photo_path), 404, 'No photo on file.');
+
+        return Storage::disk('public')->response($citizen->photo_path);
     }
 
     public function uploadFingerprint(FingerprintUploadRequest $request, int $id)

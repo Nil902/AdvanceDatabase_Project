@@ -40,4 +40,24 @@ class AuditChain
     {
         return hash('sha256', ($prevHash ?? '').self::payload($row));
     }
+
+    /**
+     * Append one chained audit row. Used for events that aren't model
+     * create/update/delete (e.g. login/logout), which the AuditObserver can't
+     * see. Chains to the latest row's hash exactly like the observer does.
+     *
+     * @param  array{user_id:int,action:string,target_table:?string,target_id:mixed,old_value:?array,new_value:?array}  $core
+     */
+    public static function append(array $core, ?string $ip = null, ?string $userAgent = null): void
+    {
+        $prevHash = UserActionLog::orderByDesc('log_id')->value('hash');
+
+        UserActionLog::create($core + [
+            'performed_at' => now(),
+            'ip_address' => $ip,
+            'user_agent' => $userAgent ? substr($userAgent, 0, 500) : null,
+            'prev_hash' => $prevHash,
+            'hash' => self::hash($prevHash, $core),
+        ]);
+    }
 }

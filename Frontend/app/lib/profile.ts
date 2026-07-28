@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type React from 'react';
-import { api, ApiError, getStoredUser, setStoredUser } from './api';
+import { api, ApiError, fetchAuthedBlobUrl, getStoredUser, setStoredUser } from './api';
 
 // The subset of the stored `auth_user` (SystemUserResource) the profile form
 // reads/writes.
@@ -9,6 +9,7 @@ interface StoredProfile {
   full_name_en?: string | null;
   email?: string | null;
   phone_number?: string | null;
+  has_avatar?: boolean;
 }
 
 // Manages the self-service profile fields plus the edit/cancel/save lifecycle.
@@ -30,6 +31,42 @@ export function useProfileForm() {
   const [password, setPassword] = useState('');
 
   const [backup, setBackup] = useState({ name, email, phone, zone });
+
+  // Profile picture: streamed from the auth-guarded GET /auth/me/avatar as a
+  // blob URL (never a public URL). `hasAvatar` seeds from the stored session.
+  const [hasAvatar, setHasAvatar] = useState(Boolean(stored?.has_avatar));
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  // Bumped after each upload so the effect re-fetches even though hasAvatar is
+  // already true (the blob content changed, the flag didn't).
+  const [avatarNonce, setAvatarNonce] = useState(0);
+
+  useEffect(() => {
+    if (!hasAvatar) { setAvatarUrl(null); return; }
+    let active = true;
+    let created: string | null = null;
+    fetchAuthedBlobUrl('/auth/me/avatar')
+      .then((u) => { if (active) { created = u; setAvatarUrl(u); } else URL.revokeObjectURL(u); })
+      .catch(() => { if (active) setAvatarUrl(null); });
+    return () => { active = false; if (created) URL.revokeObjectURL(created); };
+  }, [hasAvatar, avatarNonce]);
+
+  const uploadAvatar = async (file: File) => {
+    setUploadingAvatar(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append('photo', file);
+      await api.post('/auth/me/avatar', fd);
+      setStoredUser({ ...(stored ?? {}), has_avatar: true });
+      setHasAvatar(true);
+      setAvatarNonce((n) => n + 1);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to upload photo.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const startEditing = () => {
     setError(null);
@@ -84,6 +121,7 @@ export function useProfileForm() {
     startEditing,
     cancelEditing,
     saveProfile,
+    avatarUrl, hasAvatar, uploadingAvatar, uploadAvatar,
   };
 }
 

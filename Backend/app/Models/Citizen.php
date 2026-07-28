@@ -11,6 +11,7 @@ class Citizen extends Model
     protected $fillable = [
         'national_id_number', 'full_name_kh', 'full_name_en', 'gender',
         'date_of_birth', 'date_of_death', 'birth_place_village_id', 'nationality', 'occupation',
+        'photo_path',
     ];
 
     protected $casts = [

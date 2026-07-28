@@ -54,6 +54,8 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('auth/me', [AuthController::class, 'me']);
         Route::put('auth/me', [AuthController::class, 'updateProfile']);
+        Route::post('auth/me/avatar', [AuthController::class, 'uploadAvatar']);
+        Route::get('auth/me/avatar', [AuthController::class, 'avatar']);
 
         // ── Birth Certificates ───────────────────────────────────────────
         // Explicit per-verb guards. A single resource middleware would let any
@@ -93,6 +95,8 @@ Route::prefix('v1')->group(function () {
             ->middleware('ability:citizen:update');
         Route::post('citizens/{id}/photo', [CitizenController::class, 'uploadPhoto'])
             ->middleware('ability:citizen:update');
+        Route::get('citizens/{id}/photo', [CitizenController::class, 'photo'])
+            ->middleware('ability:citizen:read');
         Route::post('citizens/{id}/fingerprint', [CitizenController::class, 'uploadFingerprint'])
             ->middleware('ability:citizen:update');
         Route::post('citizens/{id}/assign-nid', [CitizenController::class, 'assignNid'])

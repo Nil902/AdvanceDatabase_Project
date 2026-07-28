@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Resources\SystemUserResource;
 use App\Models\SystemUser;
+use App\Support\AuditChain;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
@@ -44,6 +46,17 @@ class AuthController extends Controller
 
         $user->registerSuccessfulLogin($request->ip());
 
+        // Auth events aren't model writes, so the AuditObserver never sees them.
+        // Record the sign-in explicitly so the audit trail shows who logged in.
+        AuditChain::append([
+            'user_id' => $user->user_id,
+            'action' => 'login',
+            'target_table' => 'system_users',
+            'target_id' => $user->user_id,
+            'old_value' => null,
+            'new_value' => null,
+        ], $request->ip(), $request->userAgent());
+
         ['token' => $plainToken] = $user->issueToken(
             name: 'web-session',
             abilities: $this->abilitiesForRole($user->role_id),
@@ -62,6 +75,15 @@ class AuthController extends Controller
     {
         $user = $request->user();
         $user->currentToken?->revoke();
+
+        AuditChain::append([
+            'user_id' => $user->user_id,
+            'action' => 'logout',
+            'target_table' => 'system_users',
+            'target_id' => $user->user_id,
+            'old_value' => null,
+            'new_value' => null,
+        ], $request->ip(), $request->userAgent());
 
         return response()->json(['message' => 'Logged out successfully.']);
     }
@@ -100,6 +122,35 @@ class AuthController extends Controller
         $user->save();
 
         return response()->json(new SystemUserResource($user->load('role')));
+    }
+
+    // POST /api/v1/auth/me/avatar — the authenticated user sets their own profile
+    // picture. Stored on the 'public' disk; streamed back via avatar() below.
+    public function uploadAvatar(Request $request): JsonResponse
+    {
+        $request->validate(['photo' => 'required|image|max:4096']);
+
+        $user = $request->user();
+
+        if ($user->avatar_path) {
+            Storage::disk('public')->delete($user->avatar_path);
+        }
+
+        $ext = $request->file('photo')->extension() ?: 'jpg';
+        $user->avatar_path = $request->file('photo')->storeAs("avatars/{$user->user_id}", "avatar.{$ext}", 'public');
+        $user->save();
+
+        return response()->json(new SystemUserResource($user->load('role')));
+    }
+
+    // GET /api/v1/auth/me/avatar — stream the authenticated user's avatar.
+    public function avatar(Request $request)
+    {
+        $user = $request->user();
+
+        abort_if(! $user->avatar_path || ! Storage::disk('public')->exists($user->avatar_path), 404, 'No avatar on file.');
+
+        return Storage::disk('public')->response($user->avatar_path);
     }
 
     private function abilitiesForRole(int $roleId): array

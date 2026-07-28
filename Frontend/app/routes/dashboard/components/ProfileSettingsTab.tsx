@@ -1,4 +1,4 @@
-import { Save, X, Loader2 } from 'lucide-react';
+import { Save, X, Loader2, ImagePlus } from 'lucide-react';
 import { DEFAULT_AVATAR } from '../constants';
 import { useProfileForm, type ProfileForm } from '../../../lib/profile';
 
@@ -20,7 +20,17 @@ export function ProfileSettingsTab({ profile }: { profile: ProfileForm }) {
       <div className="grid grid-cols-12 gap-6 items-start">
         <div className="col-span-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm text-center space-y-4">
           <div className="relative group mx-auto h-20 w-20">
-            <img src={DEFAULT_AVATAR.replace('w=100', 'w=200')} alt="Avatar Huge" className="h-20 w-20 rounded-xl object-cover border border-slate-100" />
+            <img src={profile.avatarUrl ?? DEFAULT_AVATAR.replace('w=100', 'w=200')} alt="Profile avatar" className="h-20 w-20 rounded-xl object-cover border border-slate-100" />
+            <label className="absolute -bottom-1 -right-1 inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 shadow-sm hover:bg-slate-50" title="Change photo">
+              {profile.uploadingAvatar ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={profile.uploadingAvatar}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) profile.uploadAvatar(f); e.target.value = ''; }}
+              />
+            </label>
           </div>
           <div>
             <h3 className="font-bold text-slate-900 text-sm">{profile.name}</h3>

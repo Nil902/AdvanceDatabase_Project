@@ -29,6 +29,7 @@ class CitizenResource extends JsonResource
             }),
             'nationality' => $this->nationality,
             'occupation' => $this->occupation,
+            'has_photo' => (bool) $this->photo_path,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

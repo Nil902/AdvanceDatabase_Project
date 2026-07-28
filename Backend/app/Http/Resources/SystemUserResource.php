@@ -17,6 +17,7 @@ class SystemUserResource extends JsonResource
             'full_name_en' => $this->full_name_en,
             'phone_number' => $this->phone_number,
             'avatar_url' => $this->avatar_url,
+            'has_avatar' => (bool) $this->avatar_path,
             'is_active' => $this->is_active,
             'must_change_password' => $this->must_change_password,
             'last_login_at' => $this->last_login_at,
