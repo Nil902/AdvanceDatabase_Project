@@ -7,7 +7,7 @@ import {
   LogOut,
   Gauge,
 } from 'lucide-react';
-import { DEFAULT_AVATAR } from '../constants';
+import { Avatar } from '~/components/Avatar';
 import { api, clearSession } from '../../../lib/api';
 import type { DashboardTab } from '../types';
 
@@ -45,7 +45,7 @@ export function DashboardLayout({
       <aside className="fixed inset-y-0 left-0 flex w-64 flex-col justify-between border-r border-slate-200 bg-white p-5 shadow-sm z-20">
         <div className="space-y-7">
           <div className="flex items-center gap-3 border-b border-slate-100 pb-5">
-            <img src={profileAvatarUrl ?? DEFAULT_AVATAR} alt="Profile avatar" className="h-9 w-9 rounded-lg object-cover" />
+            <Avatar url={profileAvatarUrl} name={profileName} className="h-9 w-9 text-xs" rounded="rounded-lg" />
             <div>
               <h4 className="text-xs font-bold tracking-tight text-slate-900">{profileName}</h4>
               <p className="text-[11px] text-slate-500">{profileEmail}</p>

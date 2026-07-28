@@ -1,5 +1,5 @@
 import { Save, X, Loader2, ImagePlus } from 'lucide-react';
-import { DEFAULT_AVATAR } from '../constants';
+import { Avatar } from '~/components/Avatar';
 import { useProfileForm, type ProfileForm } from '../../../lib/profile';
 
 export { useProfileForm };
@@ -25,7 +25,7 @@ export function ProfileSettingsTab() {
       <div className="grid grid-cols-12 gap-6 items-start">
         <div className="col-span-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm text-center space-y-4">
           <div className="relative group mx-auto h-20 w-20">
-            <img src={profile.avatarUrl ?? DEFAULT_AVATAR.replace('w=100', 'w=200')} alt="Profile avatar" className="h-20 w-20 rounded-xl object-cover border border-slate-100" />
+            <Avatar url={profile.avatarUrl} name={profile.name} className="h-20 w-20 text-lg" rounded="rounded-xl" />
             <label className="absolute -bottom-1 -right-1 inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 shadow-sm hover:bg-slate-50" title="Change photo">
               {profile.uploadingAvatar ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
               <input

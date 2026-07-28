@@ -11,7 +11,7 @@ import {
   Trash2,
   Loader2,
 } from 'lucide-react';
-import { DEFAULT_AVATAR } from '../constants';
+import { Avatar } from '~/components/Avatar';
 import { api, ApiError, type Paginated } from '../../../lib/api';
 import { AddUserModal } from './AddUserModal';
 import { EditUserModal } from './EditUserModal';
@@ -49,7 +49,7 @@ export interface SystemUserRow {
   roleName: string;
   isActive: boolean;
   lastLoginAt: string | null;
-  avatar: string;
+  avatar: string | null;
 }
 
 function mapUser(u: ApiSystemUser): SystemUserRow {
@@ -65,7 +65,7 @@ function mapUser(u: ApiSystemUser): SystemUserRow {
     roleName: u.role?.role_name ?? '—',
     isActive: u.is_active,
     lastLoginAt: u.last_login_at,
-    avatar: u.avatar_url || DEFAULT_AVATAR,
+    avatar: u.avatar_url,
   };
 }
 
@@ -289,7 +289,7 @@ export function UserManagementTab({ users }: { users: UsersController }) {
           )}
           {!users.loading && filteredUsers.map((account) => (
             <tr key={account.id} className="hover:bg-slate-50/50 transition">
-              <td className="px-6 py-3.5 flex items-center gap-3"><img src={account.avatar} alt={account.fullNameEn || account.username} className="h-8 w-8 rounded-lg object-cover" /><div><div className="font-bold text-slate-900">{account.fullNameEn || account.username}</div><div className="text-[11px] text-slate-400">@{account.username} · last active {formatLastActive(account.lastLoginAt)}</div></div></td>
+              <td className="px-6 py-3.5 flex items-center gap-3"><Avatar url={account.avatar} name={account.fullNameEn || account.username} className="h-8 w-8 text-[10px]" rounded="rounded-lg" /><div><div className="font-bold text-slate-900">{account.fullNameEn || account.username}</div><div className="text-[11px] text-slate-400">@{account.username} · last active {formatLastActive(account.lastLoginAt)}</div></div></td>
               <td className="px-6 py-3.5 text-slate-600 font-medium">{account.email || '—'}</td>
               <td className="px-6 py-3.5"><span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-bold tracking-wide uppercase ${account.roleCode === 'admin' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{account.roleName}</span></td>
               <td className="px-6 py-3.5"><div className="flex items-center gap-1.5 font-semibold"><span className={`h-1.5 w-1.5 rounded-full ${account.isActive ? 'bg-emerald-500' : 'bg-rose-500'}`} /><span className={account.isActive ? 'text-slate-800' : 'text-rose-600'}>{account.isActive ? 'Active' : 'Inactive'}</span></div></td>

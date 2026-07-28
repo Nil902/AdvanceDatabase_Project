@@ -2,9 +2,6 @@ import type React from 'react';
 import { FileText, CreditCard, BookOpen, Users } from 'lucide-react';
 import type { BreakdownEntry, ModuleKey } from './types';
 
-export const DEFAULT_AVATAR =
-  'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100';
-
 // Maps a module to its registrar route segment. Used to navigate from the
 // overview cards into the actual portal pages.
 export const registrarPath: Record<ModuleKey, string> = {
