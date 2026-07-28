@@ -14,6 +14,8 @@ class BirthCertVerificationTest extends TestCase
 {
     use RefreshDatabase;
 
+    private int $actingUserId;
+
     private function actingToken(): string
     {
         DB::table('user_roles')->insertOrIgnore([
@@ -32,6 +34,10 @@ class BirthCertVerificationTest extends TestCase
             'role_id' => 1,
             'is_active' => true,
         ]);
+
+        // Capture the real id — under RefreshDatabase the Postgres serial keeps
+        // climbing across tests, so it is not reliably 1.
+        $this->actingUserId = $user->user_id;
 
         return $user->issueToken('test', ['*'])['token'];
     }
@@ -80,7 +86,7 @@ class BirthCertVerificationTest extends TestCase
     public function test_amending_verified_certificate_requires_reason(): void
     {
         $token = $this->actingToken();
-        $cert = $this->makeCert(['verified_at' => now(), 'verified_by' => 1]);
+        $cert = $this->makeCert(['verified_at' => now(), 'verified_by' => $this->actingUserId]);
 
         $this->withToken($token)
             ->patchJson("/api/v1/birth-certificates/{$cert->certificate_id}", [
@@ -93,7 +99,7 @@ class BirthCertVerificationTest extends TestCase
     public function test_amendment_with_reason_clears_verification(): void
     {
         $token = $this->actingToken();
-        $cert = $this->makeCert(['verified_at' => now(), 'verified_by' => 1]);
+        $cert = $this->makeCert(['verified_at' => now(), 'verified_by' => $this->actingUserId]);
 
         $this->withToken($token)
             ->patchJson("/api/v1/birth-certificates/{$cert->certificate_id}", [

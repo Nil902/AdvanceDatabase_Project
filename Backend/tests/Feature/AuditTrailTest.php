@@ -58,6 +58,17 @@ class AuditTrailTest extends TestCase
             ->postJson('/api/v1/birth-certificates', [
                 'citizen_id' => $citizen->citizen_id,
                 'certificate_number' => 'BC-TEST-1',
+                // mother + informant are legally required (Phase 4.4).
+                'mother' => [
+                    'full_name_kh' => 'ម្តាយ',
+                    'full_name_en' => 'Mother',
+                    'gender' => 'F',
+                ],
+                'informant' => [
+                    'full_name' => 'Informant',
+                    'relationship_to_child' => 'mother',
+                    'declaration_date' => now()->toDateString(),
+                ],
             ])
             ->assertCreated();
 
