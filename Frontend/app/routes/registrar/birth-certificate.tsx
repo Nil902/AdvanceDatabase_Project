@@ -29,6 +29,7 @@ interface BirthRecord {
   registryBookRef: string;
   avatar: string;
   hasPhoto: boolean;
+  isVerified: boolean;
 }
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100';
@@ -52,6 +53,7 @@ interface ApiBirthCertificate {
   has_photo?: boolean;
   issue_date: string | null;
   registered_date: string | null;
+  is_verified?: boolean;
   citizen?: ApiCitizen | null;
   mother?: ApiCitizen | null;
   father?: ApiCitizen | null;
@@ -76,6 +78,7 @@ function toBirthRecord(c: ApiBirthCertificate): BirthRecord {
     registryBookRef: c.registered_date ? `Reg. ${c.registered_date}` : '—',
     avatar: DEFAULT_AVATAR,
     hasPhoto: Boolean(c.has_photo),
+    isVerified: Boolean(c.is_verified),
   };
 }
 
@@ -146,6 +149,7 @@ interface InformantForm {
 
 export default function BirthCertificatePage() {
   const [records, setRecords] = useState<BirthRecord[]>([]);
+  const [verifying, setVerifying] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -261,6 +265,20 @@ export default function BirthCertificatePage() {
       .catch(() => { if (active) setDetailPhoto(null); });
     return () => { active = false; if (created) URL.revokeObjectURL(created); };
   }, [selectedRecord?.id, selectedRecord?.hasPhoto]);
+
+  // POST /birth-certificates/{id}/verify — an officer confirms the record.
+  async function handleVerify(id: string) {
+    setVerifying(true);
+    setError(null);
+    try {
+      await api.post(`/birth-certificates/${id}/verify`, {});
+      await loadRecords();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to verify certificate.');
+    } finally {
+      setVerifying(false);
+    }
+  }
 
   const handleSelectCitizen = (id: string) => {
     setSelectedId(id);
@@ -779,15 +797,38 @@ export default function BirthCertificatePage() {
                     <p className="text-[11px] text-slate-400">National Registration Number: {selectedRecord.nid}</p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowReport(true)}
-                  disabled={selectedRecord.status === 'No Birth Cert.'}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Download className="h-3 w-3" />
-                  Export PDF Report
-                </button>
+                <div className="flex items-center gap-2">
+                  {selectedRecord.status !== 'No Birth Cert.' && (
+                    selectedRecord.isVerified ? (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200"
+                        title="This certificate has been verified by an officer."
+                      >
+                        <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                        Verified
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleVerify(selectedRecord.id)}
+                        disabled={verifying}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-600 px-3 py-1.5 text-[10px] font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {verifying ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" /> : <CheckCircle2 className="h-3 w-3" aria-hidden="true" />}
+                        Verify Record
+                      </button>
+                    )
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowReport(true)}
+                    disabled={selectedRecord.status === 'No Birth Cert.'}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Download className="h-3 w-3" />
+                    Export PDF Report
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-xs">
