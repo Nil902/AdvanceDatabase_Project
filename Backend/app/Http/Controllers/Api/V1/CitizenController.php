@@ -13,6 +13,7 @@ use App\Jobs\LogReadEvent;
 use App\Models\Citizen;
 use App\Services\CitizenService;
 use App\Services\JurisdictionScope;
+use App\Services\PhotoStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -68,16 +69,19 @@ class CitizenController extends Controller
         return new CitizenResource($citizen);
     }
 
-    public function uploadPhoto(PhotoUploadRequest $request, int $id)
+    public function uploadPhoto(PhotoUploadRequest $request, PhotoStorageService $photos, int $id)
     {
         $citizen = $this->citizenService->findById($id);
 
-        // Replace any prior portrait so we don't orphan files on the disk.
-        if ($citizen->photo_path) {
-            Storage::disk('public')->delete($citizen->photo_path);
-        }
-
-        $path = $request->file('photo')->store("citizens/{$id}/photos", 'public');
+        // Bytes → photos disk (R2/local), pointer → PG, metadata → Mongo. The
+        // prior portrait (if any) is deleted first so we never orphan files.
+        $ext = $request->file('photo')->extension() ?: 'jpg';
+        $path = $photos->store(
+            $request->file('photo'), "citizens/{$id}", "photo.{$ext}",
+            ['reference_table' => $citizen->getTable(), 'reference_id' => $citizen->getKey(),
+                'document_type' => 'citizen_portrait', 'uploaded_by_user_id' => $request->user()?->user_id],
+            replacing: $citizen->photo_path,
+        );
         $citizen->update(['photo_path' => $path]);
 
         return response()->json([
@@ -88,13 +92,13 @@ class CitizenController extends Controller
 
     // GET /citizens/{id}/photo — stream the stored portrait (auth-guarded; a face
     // photo is PII, so it is never exposed as a public URL).
-    public function photo(int $id)
+    public function photo(PhotoStorageService $photos, int $id)
     {
         $citizen = $this->citizenService->findById($id);
 
-        abort_if(! $citizen->photo_path || ! Storage::disk('public')->exists($citizen->photo_path), 404, 'No photo on file.');
+        abort_if(! $photos->exists($citizen->photo_path), 404, 'No photo on file.');
 
-        return Storage::disk('public')->response($citizen->photo_path);
+        return $photos->response($citizen->photo_path);
     }
 
     public function uploadFingerprint(FingerprintUploadRequest $request, int $id)

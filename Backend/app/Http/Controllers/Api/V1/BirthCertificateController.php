@@ -10,6 +10,7 @@ use App\Jobs\EnqueueCertificatePrint;
 use App\Jobs\LogReadEvent;
 use App\Models\BirthCertificate;
 use App\Services\JurisdictionScope;
+use App\Services\PhotoStorageService;
 use App\Services\ParentResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -158,19 +159,21 @@ class BirthCertificateController extends Controller
     }
 
     // POST /birth-certificates/{id}/photo — attach/replace the certificate scan.
-    // Stored on the persisted public disk; streamed back via photo() below.
-    public function uploadPhoto(Request $request, int $id)
+    // Bytes → photos disk (R2/local), pointer → PG, metadata → Mongo. Streamed
+    // back via photo() below (never a public URL — the scan contains PII).
+    public function uploadPhoto(Request $request, PhotoStorageService $photos, int $id)
     {
         $request->validate(['photo' => 'required|image|max:4096']);
 
         $cert = BirthCertificate::findOrFail($id);
 
-        if ($cert->photo_path) {
-            Storage::disk('public')->delete($cert->photo_path);
-        }
-
         $ext = $request->file('photo')->extension() ?: 'jpg';
-        $cert->photo_path = $request->file('photo')->storeAs("birth-certificates/{$id}", "scan.{$ext}", 'public');
+        $cert->photo_path = $photos->store(
+            $request->file('photo'), "birth-certificates/{$id}", "scan.{$ext}",
+            ['reference_table' => $cert->getTable(), 'reference_id' => $cert->getKey(),
+                'document_type' => 'birth_certificate_scan', 'uploaded_by_user_id' => $request->user()?->user_id],
+            replacing: $cert->photo_path,
+        );
         $cert->save();
 
         Cache::tags(['birth_certificates'])->forget("birth_cert:{$id}");
@@ -179,12 +182,12 @@ class BirthCertificateController extends Controller
     }
 
     // GET /birth-certificates/{id}/photo — stream the stored scan (auth-guarded).
-    public function photo(int $id)
+    public function photo(PhotoStorageService $photos, int $id)
     {
         $cert = BirthCertificate::findOrFail($id);
 
-        abort_if(! $cert->photo_path || ! Storage::disk('public')->exists($cert->photo_path), 404, 'No photo on file.');
+        abort_if(! $photos->exists($cert->photo_path), 404, 'No photo on file.');
 
-        return Storage::disk('public')->response($cert->photo_path);
+        return $photos->response($cert->photo_path);
     }
 }

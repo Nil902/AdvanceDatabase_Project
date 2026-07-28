@@ -17,6 +17,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Photo / Document Disk
+    |--------------------------------------------------------------------------
+    |
+    | Which disk stores citizen photos, ID-card photos, birth-cert scans and
+    | avatars (all PII, always streamed through the app — never public URLs).
+    | Defaults to 'public' (local) so nothing changes until you flip it to
+    | 'r2' (Cloudflare R2, S3-compatible object storage).
+    | Read everywhere via config('filesystems.photos').
+    |
+    */
+
+    'photos' => env('PHOTO_DISK', 'public'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Filesystem Disks
     |--------------------------------------------------------------------------
     |
@@ -57,6 +72,21 @@ return [
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
             'throw' => false,
+            'report' => false,
+        ],
+
+        // Cloudflare R2 — S3-compatible object storage for photos/scans. region
+        // must be 'auto' and path-style endpoints are required. The bucket stays
+        // PRIVATE; files are streamed through the app, so no public 'url' is set.
+        'r2' => [
+            'driver' => 's3',
+            'key' => env('R2_ACCESS_KEY_ID'),
+            'secret' => env('R2_SECRET_ACCESS_KEY'),
+            'region' => env('R2_DEFAULT_REGION', 'auto'),
+            'bucket' => env('R2_BUCKET'),
+            'endpoint' => env('R2_ENDPOINT'),
+            'use_path_style_endpoint' => env('R2_USE_PATH_STYLE', true),
+            'throw' => true,
             'report' => false,
         ],
 

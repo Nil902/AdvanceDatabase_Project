@@ -15,6 +15,7 @@ use App\Models\CardRequest;
 use App\Models\CardStatusLog;
 use App\Models\DispatchTracking;
 use App\Models\IdentityCard;
+use App\Services\PhotoStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -243,19 +244,21 @@ class IdCardController extends Controller
     }
 
     // POST /id-cards/{id}/photo — attach/replace the card holder's photo.
-    // Stored on the persisted public disk; streamed back via photo() below.
-    public function uploadPhoto(Request $request, int $id)
+    // Bytes → photos disk (R2/local), pointer → PG, metadata → Mongo. Streamed
+    // back via photo() below (never a public URL — this is PII).
+    public function uploadPhoto(Request $request, PhotoStorageService $photos, int $id)
     {
         $request->validate(['photo' => 'required|image|max:4096']);
 
         $card = IdentityCard::findOrFail($id);
 
-        if ($card->photo_path) {
-            Storage::disk('public')->delete($card->photo_path);
-        }
-
         $ext = $request->file('photo')->extension() ?: 'jpg';
-        $card->photo_path = $request->file('photo')->storeAs("id-cards/{$id}", "photo.{$ext}", 'public');
+        $card->photo_path = $photos->store(
+            $request->file('photo'), "id-cards/{$id}", "photo.{$ext}",
+            ['reference_table' => $card->getTable(), 'reference_id' => $card->getKey(),
+                'document_type' => 'id_card_photo', 'uploaded_by_user_id' => $request->user()?->user_id],
+            replacing: $card->photo_path,
+        );
         $card->save();
 
         Cache::tags(['id_cards'])->flush();
@@ -264,12 +267,12 @@ class IdCardController extends Controller
     }
 
     // GET /id-cards/{id}/photo — stream the stored photo (auth-guarded).
-    public function photo(int $id)
+    public function photo(PhotoStorageService $photos, int $id)
     {
         $card = IdentityCard::findOrFail($id);
 
-        abort_if(! $card->photo_path || ! Storage::disk('public')->exists($card->photo_path), 404, 'No photo on file.');
+        abort_if(! $photos->exists($card->photo_path), 404, 'No photo on file.');
 
-        return Storage::disk('public')->response($card->photo_path);
+        return $photos->response($card->photo_path);
     }
 }

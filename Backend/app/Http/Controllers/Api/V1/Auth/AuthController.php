@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Resources\SystemUserResource;
+use App\Services\PhotoStorageService;
 use App\Models\SystemUser;
 use App\Support\AuditChain;
 use Illuminate\Http\JsonResponse;
@@ -125,32 +126,34 @@ class AuthController extends Controller
     }
 
     // POST /api/v1/auth/me/avatar — the authenticated user sets their own profile
-    // picture. Stored on the 'public' disk; streamed back via avatar() below.
-    public function uploadAvatar(Request $request): JsonResponse
+    // picture. Bytes → photos disk (Spaces/R2/local), pointer → PG, metadata →
+    // Mongo. Streamed back via avatar() below.
+    public function uploadAvatar(Request $request, PhotoStorageService $photos): JsonResponse
     {
         $request->validate(['photo' => 'required|image|max:4096']);
 
         $user = $request->user();
 
-        if ($user->avatar_path) {
-            Storage::disk('public')->delete($user->avatar_path);
-        }
-
         $ext = $request->file('photo')->extension() ?: 'jpg';
-        $user->avatar_path = $request->file('photo')->storeAs("avatars/{$user->user_id}", "avatar.{$ext}", 'public');
+        $user->avatar_path = $photos->store(
+            $request->file('photo'), "avatars/{$user->user_id}", "avatar.{$ext}",
+            ['reference_table' => $user->getTable(), 'reference_id' => $user->getKey(),
+                'document_type' => 'user_avatar', 'uploaded_by_user_id' => $user->user_id],
+            replacing: $user->avatar_path,
+        );
         $user->save();
 
         return response()->json(new SystemUserResource($user->load('role')));
     }
 
     // GET /api/v1/auth/me/avatar — stream the authenticated user's avatar.
-    public function avatar(Request $request)
+    public function avatar(Request $request, PhotoStorageService $photos)
     {
         $user = $request->user();
 
-        abort_if(! $user->avatar_path || ! Storage::disk('public')->exists($user->avatar_path), 404, 'No avatar on file.');
+        abort_if(! $photos->exists($user->avatar_path), 404, 'No avatar on file.');
 
-        return Storage::disk('public')->response($user->avatar_path);
+        return $photos->response($user->avatar_path);
     }
 
     private function abilitiesForRole(int $roleId): array
