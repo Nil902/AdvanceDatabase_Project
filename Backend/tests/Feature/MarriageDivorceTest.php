@@ -199,4 +199,26 @@ class MarriageDivorceTest extends TestCase
             'ruling_date' => '2018-01-01',
         ])->assertStatus(422)->assertJsonValidationErrors('ruling_date');
     }
+
+    public function test_death_rejected_for_already_deceased_citizen(): void
+    {
+        $token = $this->actingToken();
+        $citizen = $this->makeCitizen(['date_of_death' => '2020-01-01']);
+
+        $this->withToken($token)->postJson('/api/v1/vital-events/death', [
+            'citizen_id' => $citizen->citizen_id,
+            'death_date' => '2021-01-01',
+        ])->assertStatus(422)->assertJsonValidationErrors('citizen_id');
+    }
+
+    public function test_death_rejected_when_before_birth(): void
+    {
+        $token = $this->actingToken();
+        $citizen = $this->makeCitizen(['date_of_birth' => '1990-01-01']);
+
+        $this->withToken($token)->postJson('/api/v1/vital-events/death', [
+            'citizen_id' => $citizen->citizen_id,
+            'death_date' => '1980-01-01',
+        ])->assertStatus(422)->assertJsonValidationErrors('death_date');
+    }
 }
