@@ -90,6 +90,9 @@ type Panel =
 
 export default function FamilyManagementPage() {
   const [families, setFamilies] = useState<FamilyUnit[]>([]);
+  // Real total across all pages (from the paginator), not just the loaded page —
+  // the badge would otherwise cap at per_page (100) and look frozen.
+  const [totalFamilies, setTotalFamilies] = useState(0);
   const [panel, setPanel] = useState<Panel>({ type: 'empty' });
   const [searchTerm, setSearchTerm] = useState('');
   const [searching, setSearching] = useState(true);
@@ -113,11 +116,14 @@ export default function FamilyManagementPage() {
   const searchFamilies = useCallback(async (query: string) => {
     setSearching(true);
     try {
-      const res = await api.get<{ data: any[] }>('/families/search', { query, per_page: 100 });
-      setFamilies((res.data ?? []).map(mapApiFamily));
+      const res = await api.get<{ data: any[]; meta?: { total?: number } }>('/families/search', { query, per_page: 100 });
+      const mapped = (res.data ?? []).map(mapApiFamily);
+      setFamilies(mapped);
+      setTotalFamilies(res.meta?.total ?? mapped.length);
     } catch (err) {
       console.error('Failed to load families:', err);
       setFamilies([]);
+      setTotalFamilies(0);
     } finally {
       setSearching(false);
       setLoading(false);
@@ -253,7 +259,7 @@ export default function FamilyManagementPage() {
               <h2 className="text-sm font-bold text-slate-900">Family Units</h2>
             </div>
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-              Total: {families.length}
+              Total: {totalFamilies}
             </span>
           </div>
 

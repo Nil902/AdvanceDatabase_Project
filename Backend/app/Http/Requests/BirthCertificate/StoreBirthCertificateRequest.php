@@ -23,7 +23,9 @@ class StoreBirthCertificateRequest extends FormRequest
     {
         return [
             'citizen_id' => 'required|integer|exists:citizens,citizen_id|unique:birth_certificates,citizen_id',
-            'certificate_number' => 'required|string|max:100|unique:birth_certificates,certificate_number',
+            // Optional: the registry auto-allocates a unique number (BC…) when
+            // left blank, mirroring how ID-card serials are issued server-side.
+            'certificate_number' => 'nullable|string|max:100|unique:birth_certificates,certificate_number',
             'issue_date' => 'nullable|date',
             'issued_by_officer_id' => 'nullable|integer|exists:registration_officers,officer_id',
             'registered_date' => 'nullable|date',

@@ -12,6 +12,7 @@ import {
 import { api, ApiError, getStoredUser, fetchAuthedBlobUrl, type Paginated } from '~/lib/api';
 import { ParentPicker, parentPayload, emptyParent, type ParentValue } from '~/components/ParentPicker';
 import { GeoSelect } from '~/components/GeoSelect';
+import { PhotoAvatar } from '~/components/PhotoAvatar';
 
 interface BirthRecord {
   id: string;
@@ -27,12 +28,9 @@ interface BirthRecord {
   motherName: string;
   birthCertNo: string;
   registryBookRef: string;
-  avatar: string;
   hasPhoto: boolean;
   isVerified: boolean;
 }
-
-const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100';
 
 // ── API response shapes (BirthCertificateController@index → BirthCertificateResource) ──
 // index() eager-loads only `citizen` and `officer` — parents / birth place are
@@ -76,7 +74,6 @@ function toBirthRecord(c: ApiBirthCertificate): BirthRecord {
     motherName: c.mother?.full_name_en ?? '—',
     birthCertNo: c.certificate_number,
     registryBookRef: c.registered_date ? `Reg. ${c.registered_date}` : '—',
-    avatar: DEFAULT_AVATAR,
     hasPhoto: Boolean(c.has_photo),
     isVerified: Boolean(c.is_verified),
   };
@@ -173,7 +170,6 @@ export default function BirthCertificatePage() {
   const [formDetail, setFormDetail] = useState<BirthDetail>(emptyDetail);
   const setDetail = <K extends keyof BirthDetail>(key: K, value: BirthDetail[K]) =>
     setFormDetail((d) => ({ ...d, [key]: value }));
-  const [formCertNumber, setFormCertNumber] = useState('');
   const todayStr = new Date().toISOString().slice(0, 10);
   const [formIssueDate, setFormIssueDate] = useState(todayStr);
   const [formRegisteredDate, setFormRegisteredDate] = useState(todayStr);
@@ -300,7 +296,6 @@ export default function BirthCertificatePage() {
       full_name: '', national_id_number: '', relationship_to_child: '',
       address: '', phone_number: '', declaration_date: todayStr,
     });
-    setFormCertNumber(`BC-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000 + 1000)}`);
     clearPhoto();
     setActionError(null);
     setSelectedId(null);
@@ -318,10 +313,6 @@ export default function BirthCertificatePage() {
     }
     if (!formChildDob) {
       setActionError("Enter the child's date of birth.");
-      return;
-    }
-    if (!formCertNumber.trim()) {
-      setActionError('Enter a certificate number.');
       return;
     }
     if (!formInformant.full_name.trim() || !formInformant.relationship_to_child.trim()) {
@@ -346,7 +337,8 @@ export default function BirthCertificatePage() {
         citizen_id: childRes.data.id,
         mother: parentPayload(formMother),
         father: parentPayload(formFather),
-        certificate_number: formCertNumber.trim(),
+        // Left null → the registry auto-allocates a unique number server-side.
+        certificate_number: null,
         issue_date: formIssueDate || null,
         registered_date: formRegisteredDate || null,
         issued_by_officer_id: officerId,
@@ -390,11 +382,10 @@ export default function BirthCertificatePage() {
           setActionError('Certificate registered, but the image upload failed.');
         }
       }
-      const list = await loadRecords();
+      await loadRecords();
       setShowRegisterForm(false);
       clearPhoto();
-      const createdRow = list.find((r) => r.birthCertNo === formCertNumber.trim());
-      if (createdRow) setSelectedId(createdRow.id);
+      setSelectedId(String(created.data.id));
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : 'Failed to register birth certificate.');
     } finally {
@@ -469,7 +460,7 @@ export default function BirthCertificatePage() {
                   selectedId === record.id ? 'bg-blue-50' : 'hover:bg-slate-50'
                 }`}
               >
-                <img src={record.avatar} alt={record.englishName} className="h-9 w-9 rounded-full object-cover" />
+                <PhotoAvatar path={`/birth-certificates/${record.id}/photo`} hasPhoto={record.hasPhoto} name={record.englishName} />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-slate-900 truncate">{record.khmerName} <span className="font-medium text-slate-500">({record.englishName})</span></p>
                   <p className="text-[10px] text-slate-400">NID: {record.nid}</p>
@@ -576,15 +567,10 @@ export default function BirthCertificatePage() {
                   </Field>
                 </div>
 
-                <Field label="Certificate Number" required>
-                  <input
-                    type="text"
-                    required
-                    value={formCertNumber}
-                    onChange={(e) => setFormCertNumber(e.target.value)}
-                    placeholder="e.g. BC-2026-0091"
-                    className="input-field"
-                  />
+                <Field label="Certificate Number">
+                  <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
+                    Allocated automatically by the registry on registration.
+                  </p>
                 </Field>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -791,7 +777,7 @@ export default function BirthCertificatePage() {
             <div className="p-6 space-y-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <img src={selectedRecord.avatar} alt={selectedRecord.englishName} className="h-12 w-12 rounded-full object-cover" />
+                  <PhotoAvatar path={`/birth-certificates/${selectedRecord.id}/photo`} hasPhoto={selectedRecord.hasPhoto} name={selectedRecord.englishName} className="h-12 w-12 text-sm" />
                   <div>
                     <p className="text-sm font-bold text-slate-900">{selectedRecord.khmerName} <span className="font-medium text-slate-500">({selectedRecord.englishName})</span></p>
                     <p className="text-[11px] text-slate-400">National Registration Number: {selectedRecord.nid}</p>

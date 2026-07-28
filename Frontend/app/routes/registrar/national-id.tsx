@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { api, ApiError, getStoredUser, fetchAuthedBlobUrl, type Paginated } from '~/lib/api';
 import { CitizenSearch, type CitizenOption } from '~/components/CitizenSearch';
+import { PhotoAvatar } from '~/components/PhotoAvatar';
 
 type PipelineStage = 'Pending Admin' | 'Smart Print Active' | 'Dispatched Province' | 'Delivered Station';
 type NidStatus = 'Active' | 'Suspended' | 'Disabled';
@@ -149,10 +150,6 @@ const emptyCreateForm: CreateForm = {
 
 function formatDate(iso: string): string {
     return new Date(iso).toLocaleDateString('en-US');
-}
-
-function initials(nameEn: string): string {
-    return nameEn.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('');
 }
 
 function statusPillClass(status: NidStatus): string {
@@ -388,9 +385,7 @@ export default function NationalIdCardPage() {
                                         }`}
                                     >
                                         <div className="flex items-center gap-3 min-w-0">
-                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[11px] font-bold text-slate-700">
-                                                {initials(card.nameEn)}
-                                            </div>
+                                            <PhotoAvatar path={`/id-cards/${card.id}/photo`} hasPhoto={card.hasPhoto} name={card.nameEn} className="h-10 w-10 text-[11px]" />
                                             <div className="min-w-0">
                                                 <p className="truncate text-sm font-bold text-slate-900">{card.nameKh} ({card.nameEn})</p>
                                                 <p className="text-[11px] text-slate-500">Card: {card.requestNumber} &nbsp; NID: {card.nid}</p>
@@ -414,7 +409,7 @@ export default function NationalIdCardPage() {
                             className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-purple-600 py-2.5 text-xs font-bold text-white hover:bg-purple-700"
                         >
                             <Plus className="h-3.5 w-3.5" />
-                            New Card Request
+                            New ID Card
                         </button>
                     </div>
                 </div>

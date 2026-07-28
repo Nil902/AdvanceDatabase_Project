@@ -7,7 +7,12 @@ export type { ProfileForm };
 
 // Profile settings: identity card on the left, editable account form on the
 // right. Toggling Edit swaps read-only chips for inputs; Cancel rolls back.
-export function ProfileSettingsTab({ profile }: { profile: ProfileForm }) {
+//
+// The tab owns its own useProfileForm instance (same as the registrar profile
+// page) so the edit toggle is entirely local — it never depends on a parent
+// re-render to flip into edit mode.
+export function ProfileSettingsTab() {
+  const profile = useProfileForm();
   const { isEditing } = profile;
 
   return (

@@ -54,6 +54,8 @@ class BirthCertificateController extends Controller
             // detail fields); the parent + informant objects are handled separately.
             $cert = BirthCertificate::create(
                 collect($data)->except(['mother', 'father', 'informant'])->merge([
+                    // Auto-allocate a unique registry number when none was supplied.
+                    'certificate_number' => $data['certificate_number'] ?? $this->generateCertNumber(),
                     'registered_date' => $data['registered_date'] ?? now(),
                     'mother_parent_id' => $parents->resolve($data['mother'] ?? null),
                     'father_parent_id' => $parents->resolve($data['father'] ?? null),
@@ -69,6 +71,17 @@ class BirthCertificateController extends Controller
         Cache::tags(['birth_certificates'])->flush();
 
         return new BirthCertificateResource($cert->load(self::PARENT_LOADS));
+    }
+
+    // Registry-controlled certificate number (BC + date + random), retried on
+    // the rare unique collision — same pattern as ID-card serial allocation.
+    private function generateCertNumber(): string
+    {
+        do {
+            $number = 'BC'.date('Ymd').strtoupper(bin2hex(random_bytes(4)));
+        } while (BirthCertificate::where('certificate_number', $number)->exists());
+
+        return $number;
     }
 
     public function show(Request $request, int $id)
