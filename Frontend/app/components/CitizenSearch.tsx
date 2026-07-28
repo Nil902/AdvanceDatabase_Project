@@ -9,6 +9,26 @@ export interface CitizenOption {
   full_name_kh: string | null;
   full_name_en: string | null;
   has_photo?: boolean;
+  // Particulars from the registry (present when the search eager-loads them),
+  // used to prefill an official application form and the card address.
+  gender?: string | null;
+  date_of_birth?: string | null;
+  nationality?: string | null;
+  birth_place?: {
+    village_name?: string | null;
+    commune_name?: string | null;
+    district_name?: string | null;
+    province_name?: string | null;
+  } | null;
+}
+
+// Compose a human address from a citizen's birth place (their birth
+// certificate's place of birth): village → commune → district → province.
+export function formatBirthPlace(bp?: CitizenOption['birth_place']): string {
+  if (!bp) return '';
+  return [bp.village_name, bp.commune_name, bp.district_name, bp.province_name]
+    .filter(Boolean)
+    .join(', ');
 }
 
 function displayName(c: CitizenOption): string {

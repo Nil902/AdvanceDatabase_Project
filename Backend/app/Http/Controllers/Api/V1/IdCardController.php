@@ -38,7 +38,8 @@ class IdCardController extends Controller
             // Newest first by default so a just-issued card lands on page 1 (the
             // frontend list only loads page 1).
             ->defaultSort('-card_id')
-            ->with(['citizen'])
+            // birthPlace → the card's address (place of birth from the birth cert).
+            ->with(['citizen.birthPlace'])
             ->paginate($request->get('per_page', 20));
 
         LogReadEvent::record($request, 'id_card', 'identity_cards', null, [
@@ -78,7 +79,7 @@ class IdCardController extends Controller
 
         Cache::tags(['id_cards'])->flush();
 
-        return new IdCardResource($card->load('citizen'));
+        return new IdCardResource($card->load('citizen.birthPlace'));
     }
 
     public function renew(RenewCardRequest $request, int $id)
@@ -126,7 +127,7 @@ class IdCardController extends Controller
 
         Cache::tags(['id_cards'])->flush();
 
-        return new IdCardResource($newCard->load('citizen'));
+        return new IdCardResource($newCard->load('citizen.birthPlace'));
     }
 
     public function replace(ReplaceCardRequest $request, int $id)
@@ -174,7 +175,7 @@ class IdCardController extends Controller
 
         Cache::tags(['id_cards'])->flush();
 
-        return new IdCardResource($newCard->load('citizen'));
+        return new IdCardResource($newCard->load('citizen.birthPlace'));
     }
 
     public function updateStatus(UpdateStatusRequest $request, int $id)
@@ -195,7 +196,7 @@ class IdCardController extends Controller
 
         Cache::tags(['id_cards'])->forget("id_card:{$id}");
 
-        return new IdCardResource($card->load('citizen'));
+        return new IdCardResource($card->load('citizen.birthPlace'));
     }
 
     public function dispatch(DispatchRequest $request, int $id)
@@ -263,7 +264,7 @@ class IdCardController extends Controller
 
         Cache::tags(['id_cards'])->flush();
 
-        return new IdCardResource($card->load('citizen'));
+        return new IdCardResource($card->load('citizen.birthPlace'));
     }
 
     // GET /id-cards/{id}/photo — stream the stored photo (auth-guarded).

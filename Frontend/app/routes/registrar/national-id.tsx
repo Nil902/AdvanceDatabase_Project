@@ -3,7 +3,7 @@ import {
     CreditCard, ShieldCheck, Eye, Inbox, Plus, ArrowLeft, UserRound, Loader2, AlertCircle, ImagePlus, Search, Landmark,
 } from 'lucide-react';
 import { api, ApiError, getStoredUser, fetchAuthedBlobUrl, type Paginated } from '~/lib/api';
-import { CitizenSearch, type CitizenOption } from '~/components/CitizenSearch';
+import { CitizenSearch, formatBirthPlace, type CitizenOption } from '~/components/CitizenSearch';
 import { PhotoAvatar } from '~/components/PhotoAvatar';
 
 type PipelineStage = 'Pending Admin' | 'Smart Print Active' | 'Dispatched Province' | 'Delivered Station';
@@ -54,7 +54,12 @@ interface ApiIdCard {
         full_name_en: string | null;
         gender: string | null;
         date_of_birth: string | null;
-        birth_place?: { province_name?: string | null } | null;
+        birth_place?: {
+            village_name?: string | null;
+            commune_name?: string | null;
+            district_name?: string | null;
+            province_name?: string | null;
+        } | null;
     } | null;
 }
 
@@ -85,7 +90,8 @@ function toNidCard(c: ApiIdCard): NidCard {
         nameEn: cz?.full_name_en || cz?.full_name_kh || 'Unknown',
         dob: cz?.date_of_birth ?? '',
         sex: /^f/i.test(cz?.gender ?? '') ? 'F' : 'M',
-        address: cz?.birth_place?.province_name ?? '',
+        // Address = place of birth (from the citizen's birth certificate).
+        address: formatBirthPlace(cz?.birth_place),
         expiresOn: c.expiry_date ?? '',
         status,
         hasPhoto: Boolean(c.has_photo),
@@ -168,6 +174,16 @@ function FormSection({ n, kh, en }: { n: number; kh: string; en: string }) {
                 <p className="text-[9px] uppercase tracking-wide text-slate-400">{en}</p>
             </div>
             <span className="ml-1 h-px flex-1 bg-slate-200" />
+        </div>
+    );
+}
+
+// Read-only labelled value for the applicant-particulars panel.
+function Particular({ label, value }: { label: string; value: string }) {
+    return (
+        <div>
+            <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+            <p className="text-xs font-bold text-slate-800">{value}</p>
         </div>
     );
 }
@@ -474,6 +490,22 @@ export default function NationalIdCardPage() {
                                     ringClass="focus:ring-indigo-400"
                                 />
                             </div>
+
+                            {/* Applicant particulars — pulled from the registry (the
+                                citizen's record + birth certificate), read-only. */}
+                            {createForm.citizen && (
+                                <div className="mb-6 rounded-lg border border-slate-200 bg-slate-50/60 p-4">
+                                    <p className="mb-3 text-[10px] font-bold uppercase tracking-wide text-slate-400">ព័ត៌មានលម្អិតអ្នកស្នើសុំ · Applicant Particulars (from registry)</p>
+                                    <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                                        <Particular label="ឈ្មោះ · Full Name" value={[createForm.citizen.full_name_kh, createForm.citizen.full_name_en].filter(Boolean).join(' · ') || '—'} />
+                                        <Particular label="លេខអត្តសញ្ញាណប័ណ្ណ · NID Number" value={createForm.citizen.national_id_number || '— (not yet assigned)'} />
+                                        <Particular label="ភេទ · Sex" value={createForm.citizen.gender ? (/^f/i.test(createForm.citizen.gender) ? 'Female' : 'Male') : '—'} />
+                                        <Particular label="ថ្ងៃខែឆ្នាំកំណើត · Date of Birth" value={createForm.citizen.date_of_birth ? formatDate(createForm.citizen.date_of_birth) : '—'} />
+                                        <Particular label="សញ្ជាតិ · Nationality" value={createForm.citizen.nationality || '—'} />
+                                        <Particular label="ទីកន្លែងកំណើត · Place of Birth (Address)" value={formatBirthPlace(createForm.citizen.birth_place) || '—'} />
+                                    </div>
+                                </div>
+                            )}
 
                             {/* ── 2. Card details ───────────────────────────────── */}
                             <FormSection n={2} kh="ព័ត៌មានប័ណ្ណ" en="Card Details" />
