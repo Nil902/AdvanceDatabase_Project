@@ -13,17 +13,32 @@ use App\Models\Household;
 use App\Models\HouseholdMember;
 use App\Models\IdentityCard;
 use App\Models\MarriageCertificate;
+use App\Models\MarriageStatusHistory;
 use App\Models\ParentRecord;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class VitalEventService
 {
     public function recordMarriage(array $data, int $issuedBy): MarriageCertificate
     {
         $cert = DB::transaction(function () use ($data, $issuedBy) {
+            // Defensive monogamy guard inside the transaction: the request-level
+            // eligibility check can race with a concurrent registration.
+            foreach ([$data['spouse_a_id'], $data['spouse_b_id']] as $spouseId) {
+                $inMarriage = MarriageCertificate::where('status', 'active')
+                    ->where(fn ($q) => $q->where('spouse_a_id', $spouseId)->orWhere('spouse_b_id', $spouseId))
+                    ->lockForUpdate()->exists();
+                if ($inMarriage) {
+                    throw ValidationException::withMessages([
+                        'spouse' => 'One of the spouses is already in an active marriage.',
+                    ]);
+                }
+            }
+
             $cert = MarriageCertificate::create([
                 'spouse_a_id' => $data['spouse_a_id'],
                 'spouse_b_id' => $data['spouse_b_id'],
@@ -34,6 +49,15 @@ class VitalEventService
                 'status' => 'active',
             ]);
 
+            foreach ($data['witnesses'] ?? [] as $witness) {
+                $cert->witnesses()->create([
+                    'witness_name' => $witness['witness_name'],
+                    'national_id' => $witness['national_id'] ?? null,
+                    'phone_number' => $witness['phone_number'] ?? null,
+                ]);
+            }
+
+            $this->logMarriageStatus($cert->certificate_id, 'active', $issuedBy, 'Marriage registered');
             $this->updateMaritalStatus($data['spouse_a_id'], 'married', $data['marriage_date'], $issuedBy);
             $this->updateMaritalStatus($data['spouse_b_id'], 'married', $data['marriage_date'], $issuedBy);
 
@@ -61,6 +85,7 @@ class VitalEventService
                 'issued_by' => $issuedBy,
             ]);
 
+            $this->logMarriageStatus($marriage->certificate_id, 'divorced', $issuedBy, $data['court_reference'] ?? 'Divorce recorded');
             $this->updateMaritalStatus($marriage->spouse_a_id, 'divorced', $data['ruling_date'], $issuedBy);
             $this->updateMaritalStatus($marriage->spouse_b_id, 'divorced', $data['ruling_date'], $issuedBy);
         });
@@ -135,6 +160,7 @@ class VitalEventService
                 ->get();
             foreach ($marriages as $marriage) {
                 $marriage->update(['status' => 'dissolved']);
+                $this->logMarriageStatus($marriage->certificate_id, 'dissolved', $recordedBy, 'Dissolved by death of spouse');
                 $survivorId = (int) $marriage->spouse_a_id === (int) $citizen->citizen_id ? $marriage->spouse_b_id : $marriage->spouse_a_id;
                 $this->updateMaritalStatus($survivorId, 'widowed', $deathDate, $recordedBy);
             }
@@ -213,6 +239,17 @@ class VitalEventService
                 'name' => $c->full_name_en ?: $c->full_name_kh,
                 'date_of_birth' => $c->date_of_birth ? Carbon::parse($c->date_of_birth)->toDateString() : null,
             ])->all();
+    }
+
+    private function logMarriageStatus(int $marriageCertId, string $status, int $changedBy, ?string $reason = null): void
+    {
+        MarriageStatusHistory::create([
+            'marriage_cert_id' => $marriageCertId,
+            'status' => $status,
+            'changed_at' => now(),
+            'changed_by' => $changedBy,
+            'reason' => $reason,
+        ]);
     }
 
     private function updateMaritalStatus(int $citizenId, string $status, $effectiveDate, int $recordedBy): void

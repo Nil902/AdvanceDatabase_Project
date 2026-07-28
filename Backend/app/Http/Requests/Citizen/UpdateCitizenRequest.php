@@ -20,7 +20,7 @@ class UpdateCitizenRequest extends FormRequest
             'full_name_kh' => 'sometimes|string|max:255',
             'full_name_en' => 'nullable|string|max:255',
             'gender' => 'sometimes|in:M,F',
-            'date_of_birth' => 'sometimes|date',
+            'date_of_birth' => 'sometimes|date|before_or_equal:today',
             'birth_place_village_id' => 'nullable|integer|exists:villages,village_id',
             'nationality' => 'nullable|string|max:100',
             'occupation' => 'nullable|string|max:100',
