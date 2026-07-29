@@ -19,32 +19,47 @@ interface StoredProfile {
 // authenticated user editing their own record — so it works for admin and
 // registrar alike (no admin:read ability required).
 export function useProfileForm() {
-  const stored = getStoredUser<StoredProfile>();
-
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [name, setName] = useState(stored?.full_name_en ?? '');
-  const [email, setEmail] = useState(stored?.email ?? '');
-  const [phone, setPhone] = useState(stored?.phone_number ?? '');
+  // Seeded to empty so the SSR render and the first client render match; the
+  // real values are hydrated from the stored session in the client-only effect
+  // below. Reading localStorage during render (getStoredUser returns null on
+  // the server, the user on the client) desyncs the markup and breaks hydration
+  // on this page — which manifested as the Edit toggle not working.
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [zone, setZone] = useState('');
   const [password, setPassword] = useState('');
 
   // The account's real role (from the stored session), used for the read-only
   // role/clearance labels — no fabricated "Clearance Level 5".
-  const roleName = stored?.role?.role_name ?? stored?.role?.role_code ?? 'Operator';
+  const [roleName, setRoleName] = useState('Operator');
 
-  const [backup, setBackup] = useState({ name, email, phone, zone });
+  const [backup, setBackup] = useState({ name: '', email: '', phone: '', zone: '' });
 
   // Profile picture: streamed from the auth-guarded GET /auth/me/avatar as a
-  // blob URL (never a public URL). `hasAvatar` seeds from the stored session.
-  const [hasAvatar, setHasAvatar] = useState(Boolean(stored?.has_avatar));
+  // blob URL (never a public URL). `hasAvatar` is hydrated from the session.
+  const [hasAvatar, setHasAvatar] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   // Bumped after each upload so the effect re-fetches even though hasAvatar is
   // already true (the blob content changed, the flag didn't).
   const [avatarNonce, setAvatarNonce] = useState(0);
+
+  // Hydrate the form from the stored session once, on the client only (after
+  // mount), so the server and client initial renders stay identical.
+  useEffect(() => {
+    const stored = getStoredUser<StoredProfile>();
+    if (!stored) return;
+    setName(stored.full_name_en ?? '');
+    setEmail(stored.email ?? '');
+    setPhone(stored.phone_number ?? '');
+    setRoleName(stored.role?.role_name ?? stored.role?.role_code ?? 'Operator');
+    setHasAvatar(Boolean(stored.has_avatar));
+  }, []);
 
   useEffect(() => {
     if (!hasAvatar) { setAvatarUrl(null); return; }
@@ -63,7 +78,7 @@ export function useProfileForm() {
       const fd = new FormData();
       fd.append('photo', file);
       await api.post('/auth/me/avatar', fd);
-      setStoredUser({ ...(stored ?? {}), has_avatar: true });
+      setStoredUser({ ...(getStoredUser<StoredProfile>() ?? {}), has_avatar: true });
       setHasAvatar(true);
       setAvatarNonce((n) => n + 1);
     } catch (err) {
@@ -102,7 +117,7 @@ export function useProfileForm() {
       });
       // Keep the stored session in sync so the sidebar + next load reflect edits.
       setStoredUser({
-        ...(stored ?? {}),
+        ...(getStoredUser<StoredProfile>() ?? {}),
         full_name_en: name.trim() || null,
         email: email.trim() || null,
         phone_number: phone.trim() || null,
