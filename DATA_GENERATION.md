@@ -3,6 +3,11 @@
 How large-scale sample data is generated and loaded into the CivilRegistry
 system (PostgreSQL **and** MongoDB).
 
+> There are **two** commands. `data:generate` seeds the core population
+> (citizens, birth certs, ID cards, households, families). `data:profiles`
+> (below, see [People profiles & civil-life tables](#people-profiles--civil-life-tables))
+> layers people-profile and civil-life data on top of the existing population.
+
 ## Method: a dedicated Artisan command
 
 Data is loaded by an idempotent, append-safe Artisan command —
@@ -143,3 +148,55 @@ docker compose -f docker-compose.prod.yml exec app php artisan data:generate --f
 docker compose -f docker-compose.prod.yml exec mongo mongosh civil_registry_docs --quiet --eval \
   "['citizen_biometrics','print_jobs','notification_logs','audit_event_logs','document_attachments'].forEach(c => db[c].drop())"
 ```
+
+---
+
+## People profiles & civil-life tables
+
+`Backend/app/Console/Commands/GenerateProfileData.php` (`php artisan data:profiles`)
+fills the tables that `data:generate` leaves empty and adds a rich **people
+profile** per citizen. It attaches to the **existing** citizen population (it
+does not create new citizens) and uses the same chunked bulk-insert approach.
+
+### What it generates
+
+**PostgreSQL** (defaults, `--citizens=100000`):
+
+| Table | Rows | Notes |
+|---|---|---|
+| `registration_officers` | 2,000 | `--officers`; random commune |
+| `citizen_addresses` | 100,000 | one current address per profiled citizen |
+| `citizen_marital_statuses` | 100,000 | single/married/divorced/widowed |
+| `parents` (+ `citizen_parents`) | 200,000 / 100,000 | mother + father per citizen |
+| `citizens.photo_path` | 100,000 updated | `photos/citizen/<id>.jpg` (`--photo-rate`) |
+| `marriage_certificates` (+ `marriage_witnesses`) | 60,000 / 120,000 | `--marriages` |
+| `divorce_certificates` | ~12,000 | `--divorce-rate` (0.2) of marriages |
+| `legal_guardianships` | 15,000 | `--guardianships` |
+| `birth_informants` | ≤100,000 | `--informants`, attached to existing birth certs |
+| `card_status_logs` | ≤100,000 | `--card-logs`, attached to existing ID cards |
+
+Reference rows (`nationality_statuses`, `adoption_agencies`) are seeded only if
+empty.
+
+**MongoDB** (`civil_registry_docs`):
+
+| Collection | Docs | Notes |
+|---|---|---|
+| `citizen_profiles` | 100,000 | rich profile: contact, socials, address, education, employment, emergency contact, demographics, avatar |
+
+### Run it
+
+```bash
+docker compose -f docker-compose.prod.yml exec app php artisan data:profiles
+docker compose -f docker-compose.prod.yml exec app php artisan data:profiles --all      # every existing citizen
+docker compose -f docker-compose.prod.yml exec app php artisan data:profiles --mongo=0   # skip Mongo profiles
+```
+
+### `--fresh` safety
+
+`--fresh` truncates only **leaf** profile tables. It intentionally does **not**
+truncate `parents` or `marriage_certificates`: `birth_certificates` references
+`parents` and `identity_cards` references `marriage_certificates`, so a
+`TRUNCATE ... CASCADE` on either would wipe those core tables. Those two stay
+append-only. The photo reset only clears generator-set paths
+(`photos/citizen/%`), never real uploaded photos.
