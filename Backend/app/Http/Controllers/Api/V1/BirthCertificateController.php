@@ -79,7 +79,7 @@ class BirthCertificateController extends Controller
     private function generateCertNumber(): string
     {
         do {
-            $number = 'BC'.date('Ymd').strtoupper(bin2hex(random_bytes(4)));
+            $number = 'BC-'.date('Ymd').'-'.strtoupper(bin2hex(random_bytes(4)));
         } while (BirthCertificate::where('certificate_number', $number)->exists());
 
         return $number;
