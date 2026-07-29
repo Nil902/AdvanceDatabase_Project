@@ -32,7 +32,7 @@ export default function DashboardPage() {
         {currentTab === 'overview' && <OverviewTab onNavigate={goToModule} />}
         {currentTab === 'users' && <UserManagementTab users={users} />}
         {currentTab === 'performance' && <PerformanceTab />}
-        {currentTab === 'profile' && <ProfileSettingsTab />}
+        {currentTab === 'profile' && <ProfileSettingsTab profile={profile} />}
         {currentTab === 'audit' && <AuditLogsTab />}
       </DashboardLayout>
     </AuthGuard>

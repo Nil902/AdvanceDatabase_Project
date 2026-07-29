@@ -31,14 +31,13 @@ export function useProfileForm() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [zone, setZone] = useState('');
   const [password, setPassword] = useState('');
 
   // The account's real role (from the stored session), used for the read-only
   // role/clearance labels — no fabricated "Clearance Level 5".
   const [roleName, setRoleName] = useState('Operator');
 
-  const [backup, setBackup] = useState({ name: '', email: '', phone: '', zone: '' });
+  const [backup, setBackup] = useState({ name: '', email: '', phone: '' });
 
   // Profile picture: streamed from the auth-guarded GET /auth/me/avatar as a
   // blob URL (never a public URL). `hasAvatar` is hydrated from the session.
@@ -90,7 +89,7 @@ export function useProfileForm() {
 
   const startEditing = () => {
     setError(null);
-    setBackup({ name, email, phone, zone });
+    setBackup({ name, email, phone });
     setIsEditing(true);
   };
 
@@ -98,7 +97,6 @@ export function useProfileForm() {
     setName(backup.name);
     setEmail(backup.email);
     setPhone(backup.phone);
-    setZone(backup.zone);
     setPassword('');
     setError(null);
     setIsEditing(false);
@@ -136,7 +134,6 @@ export function useProfileForm() {
     name, setName,
     email, setEmail,
     phone, setPhone,
-    zone, setZone,
     password, setPassword,
     startEditing,
     cancelEditing,

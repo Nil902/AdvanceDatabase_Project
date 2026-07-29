@@ -8,11 +8,11 @@ export type { ProfileForm };
 // Profile settings: identity card on the left, editable account form on the
 // right. Toggling Edit swaps read-only chips for inputs; Cancel rolls back.
 //
-// The tab owns its own useProfileForm instance (same as the registrar profile
-// page) so the edit toggle is entirely local — it never depends on a parent
-// re-render to flip into edit mode.
-export function ProfileSettingsTab() {
-  const profile = useProfileForm();
+// The dashboard owns the single useProfileForm instance and passes it in, so
+// the sidebar identity box and this form share one source of truth — editing
+// the name/email here updates the sidebar live, and the avatar is fetched once
+// (not once per instance).
+export function ProfileSettingsTab({ profile }: { profile: ProfileForm }) {
   const { isEditing } = profile;
 
   return (
