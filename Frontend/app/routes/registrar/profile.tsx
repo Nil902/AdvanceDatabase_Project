@@ -72,14 +72,19 @@ export default function RegistrarProfile() {
             </div>
           </div>
 
+          {/* Distinct `key`s are REQUIRED here — without them React reuses the
+             same <button> node across the isEditing ternary and patches its
+             attributes, so clicking "Edit Profile" flips that node to
+             type=submit mid-click and the form submits (snapping back to
+             read-only). Distinct keys force a fresh node. */}
           <div className="pt-2 flex items-center gap-2 border-t border-slate-100">
             {isEditing ? (
               <>
-                <button type="submit" disabled={profile.saving} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-950 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-slate-900 disabled:opacity-60">{profile.saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}Save Changes</button>
-                <button type="button" onClick={profile.cancelEditing} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50"><X className="h-3.5 w-3.5" />Cancel</button>
+                <button key="save" type="submit" disabled={profile.saving} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-950 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-slate-900 disabled:opacity-60">{profile.saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}Save Changes</button>
+                <button key="cancel" type="button" onClick={profile.cancelEditing} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50"><X className="h-3.5 w-3.5" />Cancel</button>
               </>
             ) : (
-              <button type="button" onClick={profile.startEditing} className="rounded-lg bg-slate-950 px-5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-slate-900">Edit Profile</button>
+              <button key="edit" type="button" onClick={profile.startEditing} className="rounded-lg bg-slate-950 px-5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-slate-900">Edit Profile</button>
             )}
           </div>
         </form>
