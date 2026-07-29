@@ -35,7 +35,7 @@ class CitizenController extends Controller
         $query = Citizen::query()
             // Include the birth place so callers (e.g. the ID-card application
             // form) can show the applicant's particulars + address.
-            ->with('birthPlace')
+            ->with('birthPlace.commune.district.province')
             ->where(function ($query) use ($q) {
                 $query->where('full_name_en', 'ILIKE', "%{$q}%")
                     ->orWhere('full_name_kh', 'LIKE', "%{$q}%")

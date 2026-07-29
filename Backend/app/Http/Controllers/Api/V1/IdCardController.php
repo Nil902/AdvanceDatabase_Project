@@ -39,7 +39,7 @@ class IdCardController extends Controller
             // frontend list only loads page 1).
             ->defaultSort('-card_id')
             // birthPlace → the card's address (place of birth from the birth cert).
-            ->with(['citizen.birthPlace'])
+            ->with(['citizen.birthPlace.commune.district.province'])
             ->paginate($request->get('per_page', 20));
 
         LogReadEvent::record($request, 'id_card', 'identity_cards', null, [
@@ -79,7 +79,7 @@ class IdCardController extends Controller
 
         Cache::tags(['id_cards'])->flush();
 
-        return new IdCardResource($card->load('citizen.birthPlace'));
+        return new IdCardResource($card->load('citizen.birthPlace.commune.district.province'));
     }
 
     public function renew(RenewCardRequest $request, int $id)
@@ -127,7 +127,7 @@ class IdCardController extends Controller
 
         Cache::tags(['id_cards'])->flush();
 
-        return new IdCardResource($newCard->load('citizen.birthPlace'));
+        return new IdCardResource($newCard->load('citizen.birthPlace.commune.district.province'));
     }
 
     public function replace(ReplaceCardRequest $request, int $id)
@@ -175,7 +175,7 @@ class IdCardController extends Controller
 
         Cache::tags(['id_cards'])->flush();
 
-        return new IdCardResource($newCard->load('citizen.birthPlace'));
+        return new IdCardResource($newCard->load('citizen.birthPlace.commune.district.province'));
     }
 
     public function updateStatus(UpdateStatusRequest $request, int $id)
@@ -196,7 +196,7 @@ class IdCardController extends Controller
 
         Cache::tags(['id_cards'])->forget("id_card:{$id}");
 
-        return new IdCardResource($card->load('citizen.birthPlace'));
+        return new IdCardResource($card->load('citizen.birthPlace.commune.district.province'));
     }
 
     public function dispatch(DispatchRequest $request, int $id)
@@ -264,7 +264,7 @@ class IdCardController extends Controller
 
         Cache::tags(['id_cards'])->flush();
 
-        return new IdCardResource($card->load('citizen.birthPlace'));
+        return new IdCardResource($card->load('citizen.birthPlace.commune.district.province'));
     }
 
     // GET /id-cards/{id}/photo — stream the stored photo (auth-guarded).

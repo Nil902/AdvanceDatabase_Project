@@ -16,15 +16,22 @@ class CitizenResource extends JsonResource
             'gender' => $this->gender,
             'date_of_birth' => $this->date_of_birth?->toDateString(),
             'birth_place' => $this->whenLoaded('birthPlace', function () {
+                // Village → Commune → District → Province: names live on each
+                // level, so walk the chain (all eager-loaded to avoid N+1).
+                $village = $this->birthPlace;
+                $commune = $village?->commune;
+                $district = $commune?->district;
+                $province = $district?->province;
+
                 return [
-                    'village_id' => $this->birthPlace->village_id,
-                    'village_name' => $this->birthPlace->village_name_en,
-                    'commune_id' => $this->birthPlace->commune_id,
-                    'commune_name' => $this->birthPlace->commune_name_en,
-                    'district_id' => $this->birthPlace->district_id,
-                    'district_name' => $this->birthPlace->district_name_en,
-                    'province_id' => $this->birthPlace->province_id,
-                    'province_name' => $this->birthPlace->province_name_en,
+                    'village_id' => $village?->village_id,
+                    'village_name' => $village?->village_name_en,
+                    'commune_id' => $commune?->commune_id,
+                    'commune_name' => $commune?->commune_name_en,
+                    'district_id' => $district?->district_id,
+                    'district_name' => $district?->district_name_en,
+                    'province_id' => $province?->province_id,
+                    'province_name' => $province?->province_name_en,
                 ];
             }),
             'nationality' => $this->nationality,

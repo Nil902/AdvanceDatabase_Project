@@ -19,7 +19,7 @@ class Citizen extends Model
         'date_of_death' => 'date',
     ];
 
-    public function birthPlaceVillage()
+    public function birthPlace()
     {
         return $this->belongsTo(Village::class, 'birth_place_village_id', 'village_id');
     }
