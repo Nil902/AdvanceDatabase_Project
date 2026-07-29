@@ -34,6 +34,7 @@ class GenerateProfileData extends Command
     protected $signature = 'data:profiles
         {--citizens=100000 : Attach profiles to this many existing citizens (ignored with --all)}
         {--all : Attach profiles to EVERY existing citizen}
+        {--new-only : Only target citizens/birth-certs/cards that are NOT already profiled (idempotent forward-fill — re-run to add the next batch without duplicates)}
         {--officers=2000 : Registration officers to create}
         {--marriages=60000 : Marriage certificates to create}
         {--divorce-rate=0.2 : Fraction of marriages that also get a divorce record}
@@ -64,6 +65,12 @@ class GenerateProfileData extends Command
 
     public function handle(): int
     {
+        // Loading the citizen-id pool + building chunked inserts is memory-heavy
+        // once the population reaches several hundred thousand. Raise the limit
+        // for this CLI run (well within the droplet's RAM+swap) so it doesn't
+        // hit the default 256M ceiling.
+        @ini_set('memory_limit', '1024M');
+
         $run = now()->format('ymdHis');
 
         // ── Reference data (idempotent) ──────────────────────────────────
@@ -106,9 +113,22 @@ class GenerateProfileData extends Command
             return self::FAILURE;
         }
 
+        $newOnly = (bool) $this->option('new-only');
         $target = $this->option('all') ? $poolCount : min((int) $this->option('citizens'), $poolCount);
-        $profileIds = array_slice($allIds, 0, $target);
-        $this->info("Population: {$poolCount} citizens — attaching profiles to {$target}.");
+        if ($newOnly) {
+            // Forward-fill: only citizens that don't already have an address row
+            // (our per-citizen profile anchor). Re-running keeps adding the next
+            // batch instead of duplicating already-profiled citizens.
+            $profileIds = DB::table('citizens as c')
+                ->whereNotExists(function ($q) {
+                    $q->select(DB::raw(1))->from('citizen_addresses as ca')->whereColumn('ca.citizen_id', 'c.citizen_id');
+                })
+                ->orderBy('c.citizen_id')->limit($target)->pluck('c.citizen_id')->all();
+            $this->info("Population: {$poolCount} citizens — attaching profiles to ".count($profileIds)." not-yet-profiled citizens (--new-only).");
+        } else {
+            $profileIds = array_slice($allIds, 0, $target);
+            $this->info("Population: {$poolCount} citizens — attaching profiles to {$target}.");
+        }
 
         // ── 1. Registration officers ─────────────────────────────────────
         $this->generateOfficers((int) $this->option('officers'), $communeIds, $run);
@@ -124,8 +144,8 @@ class GenerateProfileData extends Command
         $this->generateGuardianships((int) $this->option('guardianships'), $allIds, $userIds);
 
         // ── 4. Attach to existing birth certs / id cards ─────────────────
-        $this->generateBirthInformants((int) $this->option('informants'));
-        $this->generateCardStatusLogs((int) $this->option('card-logs'), $userIds);
+        $this->generateBirthInformants((int) $this->option('informants'), $newOnly);
+        $this->generateCardStatusLogs((int) $this->option('card-logs'), $userIds, $newOnly);
 
         // ── 5. MongoDB rich people-profiles ──────────────────────────────
         if ((int) $this->option('mongo')) {
@@ -422,12 +442,18 @@ class GenerateProfileData extends Command
         });
     }
 
-    private function generateBirthInformants(int $n): void
+    private function generateBirthInformants(int $n, bool $newOnly = false): void
     {
         if ($n <= 0) {
             return;
         }
-        $certIds = DB::table('birth_certificates')->orderBy('certificate_id')->limit($n)->pluck('certificate_id')->all();
+        $q = DB::table('birth_certificates as bc')->orderBy('bc.certificate_id');
+        if ($newOnly) {
+            $q->whereNotExists(function ($sub) {
+                $sub->select(DB::raw(1))->from('birth_informants as bi')->whereColumn('bi.certificate_id', 'bc.certificate_id');
+            });
+        }
+        $certIds = $q->limit($n)->pluck('bc.certificate_id')->all();
         if (empty($certIds)) {
             $this->warn('No birth_certificates found — skipping birth_informants.');
 
@@ -462,12 +488,18 @@ class GenerateProfileData extends Command
         $this->newLine();
     }
 
-    private function generateCardStatusLogs(int $n, array $userIds): void
+    private function generateCardStatusLogs(int $n, array $userIds, bool $newOnly = false): void
     {
         if ($n <= 0) {
             return;
         }
-        $cardIds = DB::table('identity_cards')->orderBy('card_id')->limit($n)->pluck('card_id')->all();
+        $q = DB::table('identity_cards as ic')->orderBy('ic.card_id');
+        if ($newOnly) {
+            $q->whereNotExists(function ($sub) {
+                $sub->select(DB::raw(1))->from('card_status_logs as csl')->whereColumn('csl.card_id', 'ic.card_id');
+            });
+        }
+        $cardIds = $q->limit($n)->pluck('ic.card_id')->all();
         if (empty($cardIds)) {
             $this->warn('No identity_cards found — skipping card_status_logs.');
 

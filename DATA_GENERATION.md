@@ -188,9 +188,23 @@ empty.
 
 ```bash
 docker compose -f docker-compose.prod.yml exec app php artisan data:profiles
-docker compose -f docker-compose.prod.yml exec app php artisan data:profiles --all      # every existing citizen
-docker compose -f docker-compose.prod.yml exec app php artisan data:profiles --mongo=0   # skip Mongo profiles
+docker compose -f docker-compose.prod.yml exec app php artisan data:profiles --all        # every existing citizen
+docker compose -f docker-compose.prod.yml exec app php artisan data:profiles --new-only   # forward-fill: only citizens/certs/cards not yet profiled
+docker compose -f docker-compose.prod.yml exec app php artisan data:profiles --mongo=0     # skip Mongo profiles
 ```
+
+**Growing the dataset by N** — add N brand-new citizens (and everything related,
+PG + Mongo), then profile exactly those new ones with no duplicates:
+
+```bash
+docker compose -f docker-compose.prod.yml exec app php artisan data:generate --citizens=100000
+docker compose -f docker-compose.prod.yml exec app php artisan data:profiles --new-only
+```
+
+`--new-only` anchors on `citizen_addresses` (and, for the attach-to-existing
+tables, on `birth_informants` / `card_status_logs`), so re-running keeps filling
+the *next* batch instead of duplicating already-profiled records. The command
+raises its own `memory_limit` for large populations.
 
 ### `--fresh` safety
 
