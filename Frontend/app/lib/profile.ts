@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type React from 'react';
 import { api, ApiError, fetchAuthedBlobUrl, getStoredUser, setStoredUser } from './api';
 
@@ -22,6 +22,11 @@ export function useProfileForm() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Lets the async /auth/me refresh below read the *current* edit state so it
+  // never clobbers fields the user is actively typing into.
+  const isEditingRef = useRef(false);
+  isEditingRef.current = isEditing;
 
   // Seeded to empty so the SSR render and the first client render match; the
   // real values are hydrated from the stored session in the client-only effect
@@ -48,16 +53,42 @@ export function useProfileForm() {
   // already true (the blob content changed, the flag didn't).
   const [avatarNonce, setAvatarNonce] = useState(0);
 
-  // Hydrate the form from the stored session once, on the client only (after
-  // mount), so the server and client initial renders stay identical.
+  // Hydrate the form on the client only (after mount) so the server and client
+  // initial renders stay identical. First seed instantly from the stored
+  // session (no flash), then refresh from GET /auth/me so the fields always
+  // reflect current server truth rather than a stale login snapshot.
   useEffect(() => {
+    let active = true;
+
+    const apply = (u: StoredProfile) => {
+      if (!active) return;
+      setName(u.full_name_en ?? '');
+      setEmail(u.email ?? '');
+      setPhone(u.phone_number ?? '');
+      setRoleName(u.role?.role_name ?? u.role?.role_code ?? 'Operator');
+      setHasAvatar(Boolean(u.has_avatar));
+    };
+
     const stored = getStoredUser<StoredProfile>();
-    if (!stored) return;
-    setName(stored.full_name_en ?? '');
-    setEmail(stored.email ?? '');
-    setPhone(stored.phone_number ?? '');
-    setRoleName(stored.role?.role_name ?? stored.role?.role_code ?? 'Operator');
-    setHasAvatar(Boolean(stored.has_avatar));
+    if (stored) apply(stored);
+
+    // Pull the authoritative record. Skipped silently on failure (the seeded
+    // values remain); a 401 is handled globally by apiFetch.
+    api.get<StoredProfile>('/auth/me')
+      .then((fresh) => {
+        if (!active) return;
+        setStoredUser({ ...(getStoredUser<StoredProfile>() ?? {}), ...fresh });
+        // Don't overwrite in-flight edits; role/avatar are safe to refresh.
+        if (isEditingRef.current) {
+          setRoleName(fresh.role?.role_name ?? fresh.role?.role_code ?? 'Operator');
+          setHasAvatar(Boolean(fresh.has_avatar));
+          return;
+        }
+        apply(fresh);
+      })
+      .catch(() => {});
+
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {

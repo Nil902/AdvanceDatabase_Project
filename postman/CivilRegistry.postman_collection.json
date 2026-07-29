@@ -1,0 +1,360 @@
+{
+  "info": {
+    "name": "CivilRegistry API (v1) — Core / Demo",
+    "description": "Core endpoints of the Civil Registry / NIMS API for demos.\n\nSetup:\n1. Select the environment (or use the collection variables).\n2. Run **Auth > Login** first — it auto-saves the bearer token into the `token` variable, so every other request is authenticated automatically.\n3. `base_url` defaults to the deployed server. Change it to `http://localhost:8000` for local dev.\n\nMost write endpoints need valid reference IDs (citizen_id, village_id, …). Use the search/list endpoints to find real IDs on your data set before running create/update calls.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://134.209.105.170", "type": "string" },
+    { "key": "api", "value": "{{base_url}}/api/v1", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "username", "value": "admin", "type": "string" },
+    { "key": "password", "value": "password123", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (saves token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login ok', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "if (body.token) {",
+                  "  pm.collectionVariables.set('token', body.token);",
+                  "  console.log('Saved token for', body.user && body.user.username);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{api}}/auth/login", "host": ["{{api}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{api}}/auth/me", "host": ["{{api}}"], "path": ["auth", "me"] }
+          }
+        },
+        {
+          "name": "Update Profile (self)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name_en\": \"System Administrator\",\n  \"email\": \"sina015772825@gmail.com\",\n  \"phone_number\": \"012345678\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{api}}/auth/me", "host": ["{{api}}"], "path": ["auth", "me"] }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{api}}/auth/logout", "host": ["{{api}}"], "path": ["auth", "logout"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Citizens",
+      "item": [
+        {
+          "name": "Search Citizens",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{api}}/citizens/search?q=&per_page=15",
+              "host": ["{{api}}"],
+              "path": ["citizens", "search"],
+              "query": [
+                { "key": "q", "value": "", "description": "name / national id fragment" },
+                { "key": "per_page", "value": "15" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Citizen",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name_kh\": \"សុខ សំណាង\",\n  \"full_name_en\": \"Sok Samnang\",\n  \"gender\": \"M\",\n  \"date_of_birth\": \"1995-04-12\",\n  \"nationality\": \"Cambodian\",\n  \"occupation\": \"Farmer\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{api}}/citizens", "host": ["{{api}}"], "path": ["citizens"] }
+          }
+        },
+        {
+          "name": "Assign National ID",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"national_id_number\": \"010203040\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{api}}/citizens/1/assign-nid",
+              "host": ["{{api}}"],
+              "path": ["citizens", "1", "assign-nid"],
+              "variable": [{ "key": "id", "value": "1" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Birth Certificates",
+      "item": [
+        {
+          "name": "List Birth Certificates",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{api}}/birth-certificates?per_page=15",
+              "host": ["{{api}}"],
+              "path": ["birth-certificates"],
+              "query": [{ "key": "per_page", "value": "15" }]
+            }
+          }
+        },
+        {
+          "name": "Show Birth Certificate",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{api}}/birth-certificates/1", "host": ["{{api}}"], "path": ["birth-certificates", "1"] }
+          }
+        },
+        {
+          "name": "Create Birth Certificate",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"citizen_id\": 1,\n  \"issue_date\": \"2026-07-29\",\n  \"birth_place_type\": \"hospital\",\n  \"mother\": {\n    \"full_name_kh\": \"ម៉ែ ស្រី\",\n    \"full_name_en\": \"Mother Srey\",\n    \"gender\": \"F\",\n    \"nationality\": \"Cambodian\"\n  },\n  \"father\": {\n    \"full_name_kh\": \"ប៉ា ចាន់\",\n    \"full_name_en\": \"Father Chan\",\n    \"gender\": \"M\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{api}}/birth-certificates", "host": ["{{api}}"], "path": ["birth-certificates"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "ID Cards",
+      "item": [
+        {
+          "name": "Search ID Cards",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{api}}/id-cards/search?q=&per_page=15",
+              "host": ["{{api}}"],
+              "path": ["id-cards", "search"],
+              "query": [
+                { "key": "q", "value": "" },
+                { "key": "per_page", "value": "15" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify ID Card (public)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"card_number\": \"NID-XXXXXXXX\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{api}}/id-cards/verify", "host": ["{{api}}"], "path": ["id-cards", "verify"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Households",
+      "item": [
+        {
+          "name": "List Households",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{api}}/households?per_page=15",
+              "host": ["{{api}}"],
+              "path": ["households"],
+              "query": [{ "key": "per_page", "value": "15" }]
+            }
+          }
+        },
+        {
+          "name": "Household Members",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{api}}/households/1/members", "host": ["{{api}}"], "path": ["households", "1", "members"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Families",
+      "item": [
+        {
+          "name": "Search Families",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{api}}/families/search?q=&per_page=15",
+              "host": ["{{api}}"],
+              "path": ["families", "search"],
+              "query": [
+                { "key": "q", "value": "" },
+                { "key": "per_page", "value": "15" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Family Tree",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{api}}/families/1/tree", "host": ["{{api}}"], "path": ["families", "1", "tree"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{api}}/reports/summary", "host": ["{{api}}"], "path": ["reports", "summary"] }
+          }
+        },
+        {
+          "name": "Demographics",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{api}}/reports/demographics", "host": ["{{api}}"], "path": ["reports", "demographics"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Locations (public)",
+      "item": [
+        {
+          "name": "Provinces",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{api}}/locations/provinces", "host": ["{{api}}"], "path": ["locations", "provinces"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{api}}/admin/users?per_page=25",
+              "host": ["{{api}}"],
+              "path": ["admin", "users"],
+              "query": [{ "key": "per_page", "value": "25" }]
+            }
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"new_registrar\",\n  \"email\": \"new_registrar@example.com\",\n  \"password\": \"password123\",\n  \"full_name_en\": \"New Registrar\",\n  \"role_id\": 3,\n  \"is_active\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{api}}/admin/users", "host": ["{{api}}"], "path": ["admin", "users"] }
+          }
+        },
+        {
+          "name": "Roles",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{api}}/admin/roles", "host": ["{{api}}"], "path": ["admin", "roles"] }
+          }
+        },
+        {
+          "name": "Audit Logs",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{api}}/admin/audit-logs?per_page=25",
+              "host": ["{{api}}"],
+              "path": ["admin", "audit-logs"],
+              "query": [{ "key": "per_page", "value": "25" }]
+            }
+          }
+        },
+        {
+          "name": "Performance — Database",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{api}}/admin/performance/database", "host": ["{{api}}"], "path": ["admin", "performance", "database"] }
+          }
+        }
+      ]
+    }
+  ]
+}
