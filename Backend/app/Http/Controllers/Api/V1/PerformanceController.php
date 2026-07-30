@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Throwable;
@@ -18,6 +19,18 @@ use Throwable;
  */
 class PerformanceController extends Controller
 {
+    // POST /api/v1/admin/cache/clear — flush the application (Redis) cache so
+    // dashboards recompute from the live DB. This only clears the cache store
+    // (Redis DB 1); sessions/queues live on a separate connection (DB 0) and are
+    // untouched, so no one is logged out. Useful after bulk data loads that
+    // write straight to Postgres and bypass the app's cache invalidation.
+    public function clearCache(): JsonResponse
+    {
+        Cache::flush();
+
+        return response()->json(['message' => 'Application cache cleared. Dashboard stats will recompute on next load.']);
+    }
+
     // GET /api/v1/admin/performance/database
     public function database(): JsonResponse
     {

@@ -6,6 +6,7 @@ import type { DashboardTab, ModuleKey } from './types';
 import { DashboardLayout } from './components/DashboardLayout';
 import { OverviewTab } from './components/OverviewTab';
 import { UserManagementTab, useUsers } from './components/UserManagementTab';
+import { CitizensTab } from './components/CitizensTab';
 import { PerformanceTab } from './components/PerformanceTab';
 import { ProfileSettingsTab, useProfileForm } from './components/ProfileSettingsTab';
 import { AuditLogsTab } from './components/AuditLogsTab';
@@ -31,6 +32,7 @@ export default function DashboardPage() {
       >
         {currentTab === 'overview' && <OverviewTab onNavigate={goToModule} />}
         {currentTab === 'users' && <UserManagementTab users={users} />}
+        {currentTab === 'citizens' && <CitizensTab />}
         {currentTab === 'performance' && <PerformanceTab />}
         {currentTab === 'profile' && <ProfileSettingsTab profile={profile} />}
         {currentTab === 'audit' && <AuditLogsTab />}

@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Users,
   User,
+  IdCard,
   FileSpreadsheet,
   LogOut,
   Gauge,
@@ -14,6 +15,7 @@ import type { DashboardTab } from '../types';
 const NAV_ITEMS: { key: DashboardTab; label: string; icon: React.ElementType }[] = [
   { key: 'overview', label: 'Overview', icon: LayoutDashboard },
   { key: 'users', label: 'User Management', icon: Users },
+  { key: 'citizens', label: 'Citizens', icon: IdCard },
   { key: 'performance', label: 'Performance', icon: Gauge },
   { key: 'profile', label: 'Profile', icon: User },
   { key: 'audit', label: 'Audit Logs', icon: FileSpreadsheet },

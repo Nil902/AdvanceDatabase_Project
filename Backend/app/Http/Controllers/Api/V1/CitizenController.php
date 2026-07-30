@@ -44,9 +44,14 @@ class CitizenController extends Controller
 
         // Phase 9: confine a scoped officer's lookups to their commune (no-op for
         // admins / unscoped accounts), via birth_place_village_id.
+        //
+        // No ORDER BY: a common substring (e.g. "sok") matches 100k+ rows, and
+        // sorting that whole set before LIMIT turned a type-ahead into a ~2s
+        // query on a 700k-row table. Dropping the sort lets the trigram bitmap
+        // scan short-circuit at LIMIT (~10 ms). Callers are type-aheads that
+        // don't need alphabetical order.
         $citizens = $jurisdiction->byVillageColumn($query, $request->user(), 'birth_place_village_id')
-            ->orderBy('full_name_en')
-            ->limit((int) $request->get('limit', 10))
+            ->limit(min((int) $request->get('limit', 10), 50))
             ->get();
 
         // Audit the lookup (unauthorized citizen search is a common real abuse).

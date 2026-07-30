@@ -168,6 +168,10 @@ Route::prefix('v1')->group(function () {
             Route::get('performance/redis', [PerformanceController::class, 'redis']);
             Route::get('performance/pgbadger', [PerformanceController::class, 'pgbadger']);
 
+            // Flush the application (Redis) cache — e.g. to refresh dashboard
+            // stats after a bulk data load that bypassed cache invalidation.
+            Route::post('cache/clear', [PerformanceController::class, 'clearCache']);
+
             // User management
             Route::get('users', [SystemUserController::class, 'index']);
             Route::post('users', [SystemUserController::class, 'store']);

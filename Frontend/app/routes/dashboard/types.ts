@@ -5,7 +5,7 @@
 export type ModuleKey = 'birth' | 'nid' | 'residency' | 'family';
 
 // The sections addressable from the sidebar.
-export type DashboardTab = 'overview' | 'users' | 'performance' | 'profile' | 'audit' | 'security';
+export type DashboardTab = 'overview' | 'users' | 'citizens' | 'performance' | 'profile' | 'audit' | 'security';
 
 export interface BreakdownEntry {
   label: string;

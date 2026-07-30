@@ -11,6 +11,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   Zap,
+  Trash2,
+  Loader2,
 } from 'lucide-react';
 import { api } from '../../../lib/api';
 
@@ -117,6 +119,8 @@ export function PerformanceTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [clearing, setClearing] = useState(false);
+  const [cacheMsg, setCacheMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -137,6 +141,21 @@ export function PerformanceTab() {
       setLoading(false);
     }
   }, []);
+
+  const clearCache = useCallback(async () => {
+    setClearing(true);
+    setCacheMsg(null);
+    try {
+      const res = await api.post<{ message: string }>('/admin/cache/clear');
+      setCacheMsg(res?.message ?? 'Cache cleared.');
+      await load(); // refresh telemetry so the key count reflects the flush
+    } catch (e: any) {
+      setCacheMsg(e?.message || 'Failed to clear cache.');
+    } finally {
+      setClearing(false);
+      setTimeout(() => setCacheMsg(null), 5000);
+    }
+  }, [load]);
 
   useEffect(() => {
     load();
@@ -240,11 +259,24 @@ export function PerformanceTab() {
 
       {/* ── Redis ──────────────────────────────────────────────────────── */}
       <section className="space-y-4">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Server className="h-4 w-4 text-rose-600" />
           <h2 className="text-sm font-bold text-slate-900">Redis Cache &amp; Queue</h2>
           <StatusPill up={redis?.status === 'up'} />
           {redis?.version && <span className="text-[11px] text-slate-400">v{redis.version} · {redis.mode}</span>}
+          <div className="ml-auto flex items-center gap-2">
+            {cacheMsg && <span className="text-[11px] font-medium text-emerald-600">{cacheMsg}</span>}
+            <button
+              type="button"
+              onClick={clearCache}
+              disabled={clearing}
+              title="Flush the application cache (Redis DB 1). Sessions are unaffected. Use after bulk data loads so dashboard stats recompute."
+              className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-bold text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
+            >
+              {clearing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              Clear Cache
+            </button>
+          </div>
         </div>
 
         {redis?.status === 'down' && (
