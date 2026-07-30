@@ -9,9 +9,18 @@ use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
+    // Tags the summary shares with the write paths. When a citizen / birth cert /
+    // id card / household / vital event is created or updated, those services
+    // call Cache::tags(['<tag>'])->flush(), which — because this key carries the
+    // same tags — invalidates the summary too. So app-created data shows up
+    // immediately instead of waiting out the 1h TTL. (Bulk `data:generate` writes
+    // straight to Postgres and bypasses these services, so use the dashboard's
+    // Clear Cache button after a bulk load.)
+    private const SUMMARY_TAGS = ['reports', 'citizens', 'birth_certificates', 'id_cards', 'households', 'vital_events'];
+
     public function summary()
     {
-        $summary = Cache::remember('reports_summary', 3600, function () {
+        $summary = Cache::tags(self::SUMMARY_TAGS)->remember('reports_summary', 3600, function () {
             return [
                 'total_citizens' => DB::table('citizens')->count(),
                 'total_birth_certificates' => DB::table('birth_certificates')->count(),
@@ -33,7 +42,9 @@ class ReportController extends Controller
         $groupBy = $request->get('group_by', 'gender');
         $cacheKey = 'reports_demographics_'.$groupBy;
 
-        $demographics = Cache::remember($cacheKey, 3600, function () use ($groupBy) {
+        // Demographics only breaks down citizens, so it invalidates whenever the
+        // citizens tag is flushed (CitizenService / VitalEventService create).
+        $demographics = Cache::tags(['reports', 'citizens'])->remember($cacheKey, 3600, function () use ($groupBy) {
             $query = DB::table('citizens')
                 ->join('villages', 'citizens.birth_place_village_id', '=', 'villages.village_id')
                 ->join('communes', 'villages.commune_id', '=', 'communes.commune_id')
