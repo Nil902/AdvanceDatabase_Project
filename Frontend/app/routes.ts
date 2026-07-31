@@ -17,6 +17,7 @@ export default [
     route("national-id", "routes/registrar/national-id.tsx"),
     route("residency-book", "routes/registrar/residency-book.tsx"),
     route("family-management", "routes/registrar/family-management.tsx"),
+    route("documents", "routes/registrar/document-upload.tsx"),
     route("profile", "routes/registrar/profile.tsx"),
   ]),
 ] satisfies RouteConfig;

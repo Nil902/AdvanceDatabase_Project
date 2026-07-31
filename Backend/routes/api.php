@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\BirthCertificateController;
 use App\Http\Controllers\Api\V1\CitizenController;
+use App\Http\Controllers\Api\V1\CitizenDocumentController;
 use App\Http\Controllers\Api\V1\FamilyController;
 use App\Http\Controllers\Api\V1\GeoController;
 use App\Http\Controllers\Api\V1\HouseholdController;
@@ -101,6 +102,14 @@ Route::prefix('v1')->group(function () {
             ->middleware('ability:citizen:update');
         Route::post('citizens/{id}/assign-nid', [CitizenController::class, 'assignNid'])
             ->middleware('ability:citizen:update');
+
+        // Official documents (bytes → PostgreSQL, metadata → MongoDB).
+        Route::get('citizens/{id}/documents', [CitizenDocumentController::class, 'index'])
+            ->middleware('ability:citizen:read');
+        Route::post('citizens/{id}/documents', [CitizenDocumentController::class, 'store'])
+            ->middleware('ability:citizen:update');
+        Route::get('citizens/{id}/documents/{imageId}', [CitizenDocumentController::class, 'show'])
+            ->middleware('ability:citizen:read');
 
         // ── ID Cards ─────────────────────────────────────────────────────
         Route::get('id-cards/search', [IdCardController::class, 'search'])

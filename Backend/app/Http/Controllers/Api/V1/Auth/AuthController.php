@@ -175,6 +175,7 @@ class AuthController extends Controller
             'family:create', 'family:read', 'family:update', 'family:add_member', 'family:delete',
             'citizen:create', 'citizen:read', 'citizen:update',
             'citizen:assign_nid', 'citizen:upload_fingerprint', 'citizen:upload_photo',
+            'citizen:upload_document',
             'vital:birth', 'vital:death', 'vital:divorce', 'vital:marriage',
             'reports:read',
         ];

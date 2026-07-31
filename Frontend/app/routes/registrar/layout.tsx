@@ -6,6 +6,7 @@ import {
   IdCard,
   BookOpen,
   UsersRound,
+  FileUp,
   LogOut,
   KeyRound,
   UserCog,
@@ -20,6 +21,7 @@ const NAV_ITEMS = [
   { to: '/registrar/national-id', label: 'National ID Card', icon: IdCard, color: 'text-amber-400' },
   { to: '/registrar/residency-book', label: 'Residency Book', icon: BookOpen, color: 'text-purple-400' },
   { to: '/registrar/family-management', label: 'Family Management', icon: UsersRound, color: 'text-red-400' },
+  { to: '/registrar/documents', label: 'Upload Document', icon: FileUp, color: 'text-cyan-400' },
 ];
 
 // Shape stored in localStorage at login (SystemUserResource).
