@@ -13,7 +13,8 @@ class FamilyDocumentAttachment extends Model
 
     protected $fillable = [
         'reference_table', 'reference_id', 'document_type',
-        'mongo_document_id', 'uploaded_by', 'uploaded_at',
+        'mongo_document_id', 'object_key', 'storage_disk',
+        'uploaded_by', 'uploaded_at',
     ];
 
     protected $casts = ['uploaded_at' => 'datetime'];

@@ -2,28 +2,30 @@
 
 namespace App\Services;
 
+use App\Models\DocumentAttachmentImage;
 use App\Models\FamilyDocumentAttachment;
 use App\Models\Mongo\DocumentAttachment;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use PDO;
 
 /**
- * Stores a citizen's official documents across both databases:
+ * Stores a citizen's official documents across every store:
  *
  *   record    → PostgreSQL  (family_document_attachments — the attachment row)
  *   bytes     → PostgreSQL  (document_attachment_images.image_data, a bytea blob)
+ *   bytes     → Object store (R2 in prod, local 'public' in dev — the bucket)
  *   metadata  → MongoDB     (document_attachments, keyed by pg_attachment_id)
  *
  * The two PostgreSQL writes share a transaction so we never leave a record
- * without its bytes. The Mongo metadata write is best-effort (mirrors
- * PhotoStorageService): if Mongo is unreachable the document is still safely
- * persisted in Postgres, which is authoritative.
- *
- * Unlike PhotoStorageService (which puts bytes on object storage/R2), documents
- * are stored inline in PostgreSQL so the whole record lives in the relational
- * DB — hence the 8 MB upload cap in DocumentUploadRequest.
+ * without its bytes; PostgreSQL is authoritative. The R2 mirror and the Mongo
+ * metadata write both run after commit and are best-effort (mirrors
+ * PhotoStorageService): if either store is unreachable the document is still
+ * safely persisted in Postgres. The R2 disk comes from config('filesystems.photos'),
+ * the same bucket as citizen photos. The 8 MB cap (DocumentUploadRequest) keeps
+ * the inline PG copy reasonable.
  */
 class CitizenDocumentService
 {
@@ -73,18 +75,109 @@ class CitizenDocumentService
             return $attachment;
         });
 
-        $this->recordMetadata($attachment, $file, $checksum, $uploadedBy);
+        // Mirror the bytes into the bucket (R2), then record metadata in Mongo.
+        // Both run post-commit and are best-effort — Postgres already holds the
+        // authoritative copy.
+        $objectKey = $this->mirrorToBucket($attachment, $file);
+
+        $this->recordMetadata($attachment, $file, $checksum, $uploadedBy, $objectKey);
 
         return $attachment->load('images');
     }
 
+    /** The bucket disk that mirrors documents (same one used for photos). */
+    private function bucketDisk(): string
+    {
+        return config('filesystems.photos', 'public');
+    }
+
+    /**
+     * Copy the uploaded bytes into object storage under a deterministic key and
+     * persist the pointer on the PG row. Best-effort: an R2 outage must not fail
+     * the upload (the PG copy is authoritative). Returns the object key or null.
+     */
+    private function mirrorToBucket(FamilyDocumentAttachment $attachment, UploadedFile $file): ?string
+    {
+        $disk = $this->bucketDisk();
+        $ext = $file->getClientOriginalExtension() ?: 'bin';
+        $key = "documents/citizens/{$attachment->reference_id}/{$attachment->attachment_id}.{$ext}";
+
+        try {
+            Storage::disk($disk)->put($key, file_get_contents($file->getRealPath()));
+            $attachment->update(['object_key' => $key, 'storage_disk' => $disk]);
+
+            return $key;
+        } catch (\Throwable $e) {
+            Log::warning('Document bucket mirror failed — PG copy is still valid', [
+                'pg_attachment_id' => $attachment->attachment_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Delete one of a citizen's documents from every store (PG record + bytes,
+     * R2 mirror, Mongo metadata). Scoped to the citizen so an attachment_id from
+     * another record can't be deleted here (returns false → caller 404s). The two
+     * PG deletes share a transaction; the R2 and Mongo deletes are best-effort.
+     */
+    public function delete(int $citizenId, int $attachmentId): bool
+    {
+        $attachment = FamilyDocumentAttachment::query()
+            ->whereKey($attachmentId)
+            ->where('reference_table', 'citizens')
+            ->where('reference_id', $citizenId)
+            ->first();
+
+        if (! $attachment) {
+            return false;
+        }
+
+        $objectKey = $attachment->object_key;
+        $disk = $attachment->storage_disk ?: $this->bucketDisk();
+
+        DB::transaction(function () use ($attachment) {
+            // Images carry an FK to the attachment with no cascade, so delete the
+            // bytes first, then the record.
+            DocumentAttachmentImage::where('attachment_id', $attachment->attachment_id)->delete();
+            $attachment->delete();
+        });
+
+        // Remove the bucket mirror (best-effort — never orphan-block a delete).
+        if ($objectKey) {
+            try {
+                Storage::disk($disk)->delete($objectKey);
+            } catch (\Throwable $e) {
+                Log::warning('Document bucket delete failed', [
+                    'object_key' => $objectKey,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        try {
+            DocumentAttachment::where('pg_attachment_id', $attachmentId)->delete();
+        } catch (\Throwable $e) {
+            Log::warning('Document metadata delete (MongoDB) failed — PG rows are already gone', [
+                'pg_attachment_id' => $attachmentId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return true;
+    }
+
     /** Upsert the Mongo metadata doc and link it back onto the PG row. Best-effort. */
-    private function recordMetadata(FamilyDocumentAttachment $attachment, UploadedFile $file, string $checksum, int $uploadedBy): void
+    private function recordMetadata(FamilyDocumentAttachment $attachment, UploadedFile $file, string $checksum, int $uploadedBy, ?string $objectKey): void
     {
         try {
             $doc = DocumentAttachment::updateOrCreate(
                 ['pg_attachment_id' => $attachment->attachment_id],
                 [
+                    'object_key' => $objectKey,
+                    'disk' => $objectKey ? $this->bucketDisk() : null,
                     'reference_table' => $attachment->reference_table,
                     'reference_id' => $attachment->reference_id,
                     'document_type' => $attachment->document_type,

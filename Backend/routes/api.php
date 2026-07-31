@@ -110,6 +110,8 @@ Route::prefix('v1')->group(function () {
             ->middleware('ability:citizen:update');
         Route::get('citizens/{id}/documents/{imageId}', [CitizenDocumentController::class, 'show'])
             ->middleware('ability:citizen:read');
+        Route::delete('citizens/{id}/documents/{attachmentId}', [CitizenDocumentController::class, 'destroy'])
+            ->middleware('ability:citizen:update');
 
         // ── ID Cards ─────────────────────────────────────────────────────
         Route::get('id-cards/search', [IdCardController::class, 'search'])

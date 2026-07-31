@@ -90,11 +90,14 @@ class CitizenDocumentController extends Controller
         // Pull the bytea back as base64 so retrieval is driver-independent (raw
         // bytea comes back either escaped or as a stream depending on the PDO
         // build); base64 sidesteps both.
-        $b64 = DB::table('document_attachment_images')
-            ->whereKey($imageId)
+        // NB: use ->first(), not ->value('b64') — value() re-selects the column
+        // by name and discards the selectRaw, asking PG for a non-existent "b64"
+        // column (500). base64_decode ignores the newlines PG's encode() inserts.
+        $row = DB::table('document_attachment_images')
+            ->where('image_id', $imageId)
             ->selectRaw("encode(image_data, 'base64') as b64")
-            ->value('b64');
-        $bytes = base64_decode((string) $b64);
+            ->first();
+        $bytes = base64_decode((string) ($row->b64 ?? ''));
 
         return response()->streamDownload(
             fn () => print($bytes),
@@ -105,5 +108,16 @@ class CitizenDocumentController extends Controller
                 'Content-Disposition' => 'inline; filename="'.addslashes($image->file_name).'"',
             ],
         );
+    }
+
+    // DELETE /citizens/{id}/documents/{attachmentId} — remove a document from all
+    // three stores (PG record + bytes, Mongo metadata).
+    public function destroy(CitizenDocumentService $documents, int $id, int $attachmentId)
+    {
+        $this->citizenService->findById($id);
+
+        abort_unless($documents->delete($id, $attachmentId), 404, 'Document not found.');
+
+        return response()->json(['message' => 'Document deleted'], 200);
     }
 }

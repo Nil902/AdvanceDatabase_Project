@@ -7,6 +7,7 @@ import {
   FileText,
   Download,
   Paperclip,
+  Trash2,
 } from 'lucide-react';
 import { api, ApiError, fetchAuthedBlobUrl } from '~/lib/api';
 import { CitizenSearch, type CitizenOption } from '~/components/CitizenSearch';
@@ -59,6 +60,7 @@ export default function DocumentUpload() {
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [loadingList, setLoadingList] = useState(false);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const loadDocuments = useCallback(async (citizenId: number) => {
     setLoadingList(true);
@@ -110,6 +112,23 @@ export default function DocumentUpload() {
       setError(err instanceof ApiError ? err.message : 'Upload failed. Please try again.');
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleDelete(doc: DocumentRow) {
+    if (!citizen) return;
+    if (!window.confirm(`Delete “${doc.file_name ?? humanType(doc.document_type)}”? This cannot be undone.`)) return;
+    setDeletingId(doc.attachment_id);
+    setError(null);
+    setSuccess(null);
+    try {
+      await api.del(`/citizens/${citizen.id}/documents/${doc.attachment_id}`);
+      setDocuments((prev) => prev.filter((d) => d.attachment_id !== doc.attachment_id));
+      setSuccess('Document deleted.');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not delete the document.');
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -253,19 +272,34 @@ export default function DocumentUpload() {
                       </p>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleDownload(doc)}
-                    disabled={!doc.image_id || downloadingId === doc.image_id}
-                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-                  >
-                    {downloadingId === doc.image_id ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Download className="h-3.5 w-3.5" />
-                    )}
-                    View
-                  </button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleDownload(doc)}
+                      disabled={!doc.image_id || downloadingId === doc.image_id}
+                      className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      {downloadingId === doc.image_id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Download className="h-3.5 w-3.5" />
+                      )}
+                      View
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(doc)}
+                      disabled={deletingId === doc.attachment_id}
+                      className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                    >
+                      {deletingId === doc.attachment_id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                      Delete
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
