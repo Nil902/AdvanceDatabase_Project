@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Search, Loader2, Copy, Check } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { Search, Loader2, Copy, Check, ChevronRight } from 'lucide-react';
 import { api } from '~/lib/api';
 import type { CitizenOption } from './CitizenSearch';
 
@@ -13,6 +14,17 @@ export function CitizenQuickLookup() {
   const [searching, setSearching] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+
+  // Open a citizen in the National ID desk, pre-filtering its list to them. The
+  // NID (or name as fallback) is passed as ?q= so that tab's server-side search
+  // resolves the exact person.
+  function openCitizen(c: CitizenOption) {
+    const term = c.national_id_number || c.full_name_en || c.full_name_kh || '';
+    setOpen(false);
+    setQ('');
+    navigate(`/registrar/national-id?q=${encodeURIComponent(term)}`);
+  }
 
   useEffect(() => {
     if (q.trim().length < 2) { setResults([]); setOpen(false); return; }
@@ -68,12 +80,20 @@ export function CitizenQuickLookup() {
         <div className="absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
           {results.map((c) => (
             <div key={c.id} className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-slate-50">
-              <div className="min-w-0">
-                <p className="truncate text-xs font-semibold text-slate-800">
-                  {c.full_name_kh ? `${c.full_name_kh} (${c.full_name_en ?? ''})` : c.full_name_en ?? 'Unknown'}
-                </p>
-                <p className="text-[11px] text-slate-500">NID: {c.national_id_number ?? '—'}</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => openCitizen(c)}
+                className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                title="Open in National ID desk"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-semibold text-slate-800">
+                    {c.full_name_kh ? `${c.full_name_kh} (${c.full_name_en ?? ''})` : c.full_name_en ?? 'Unknown'}
+                  </p>
+                  <p className="text-[11px] text-slate-500">NID: {c.national_id_number ?? '—'}</p>
+                </div>
+                <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0 text-slate-300" />
+              </button>
               {c.national_id_number && (
                 <button
                   type="button"

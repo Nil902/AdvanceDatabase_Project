@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import {
     CreditCard, ShieldCheck, Eye, Inbox, Plus, ArrowLeft, UserRound, Loader2, AlertCircle, ImagePlus, Search, Landmark,
 } from 'lucide-react';
@@ -200,7 +201,16 @@ export default function NationalIdCardPage() {
     const [detailPhoto, setDetailPhoto] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
     const [registrarName, setRegistrarName] = useState('Registrar');
-    const [searchTerm, setSearchTerm] = useState('');
+    // Seed the search from ?q= so the nav-bar quick-lookup can deep-link a citizen.
+    const [searchParams] = useSearchParams();
+    const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') ?? '');
+
+    // Keep the search box in sync when ?q= changes without a remount (e.g. the
+    // user clicks another nav-bar result while already on this tab).
+    useEffect(() => {
+        const q = searchParams.get('q');
+        if (q !== null) setSearchTerm(q);
+    }, [searchParams]);
 
     // Selected photo → local preview (revoke the previous object URL to avoid leaks).
     function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -225,42 +235,51 @@ export default function NationalIdCardPage() {
     }, []);
 
     // GET /id-cards/search — the ID-card list endpoint (no dedicated /nid-cards).
-    async function loadCards(): Promise<NidCard[]> {
-        const res = await api.get<Paginated<ApiIdCard>>('/id-cards/search', { per_page: 100 });
+    // With a search term we first resolve matching citizens server-side (via
+    // /citizens/search, which covers the WHOLE registry — not just the loaded
+    // page), then fetch their cards by citizen_id. Empty term = newest-first list.
+    async function loadCards(term = ''): Promise<NidCard[]> {
+        const t = term.trim();
+        let res: Paginated<ApiIdCard>;
+        if (t === '') {
+            res = await api.get<Paginated<ApiIdCard>>('/id-cards/search', { per_page: 100 });
+        } else {
+            const citizens = await api.get<{ data: { id: number }[] }>('/citizens/search', { q: t, limit: 25 });
+            const ids = citizens.data.map((c) => c.id);
+            if (ids.length === 0) { setCards([]); return []; }
+            res = await api.get<Paginated<ApiIdCard>>('/id-cards/search', {
+                'filter[citizen_id]': ids.join(','),
+                per_page: 100,
+            });
+        }
         const mapped = res.data.map(toNidCard);
         setCards(mapped);
         return mapped;
     }
 
+    // Debounced server-side search. Runs on mount (term '') for the initial list
+    // and again whenever the search box changes.
     useEffect(() => {
         let cancelled = false;
-        (async () => {
+        const timer = setTimeout(async () => {
             setLoading(true);
             setError(null);
             try {
-                await loadCards();
+                await loadCards(searchTerm);
             } catch (err) {
                 if (!cancelled) setError(err instanceof ApiError ? err.message : 'Failed to load ID cards.');
             } finally {
                 if (!cancelled) setLoading(false);
             }
-        })();
-        return () => { cancelled = true; };
-    }, []);
+        }, 300);
+        return () => { cancelled = true; clearTimeout(timer); };
+    }, [searchTerm]);
 
     const selected = panel.type === 'detail' ? cards.find((c) => c.id === panel.cardId) ?? null : null;
 
-    // Client-side filter over the loaded page by name (KH/EN), NID, or serial.
-    // NOTE: only searches the loaded page; full server-side search is Phase 7.6.
-    const query = searchTerm.trim().toLowerCase();
-    const visibleCards = query === ''
-        ? cards
-        : cards.filter((c) =>
-            c.nameEn.toLowerCase().includes(query) ||
-            c.nameKh.toLowerCase().includes(query) ||
-            c.nid.toLowerCase().includes(query) ||
-            c.cardNumber.toLowerCase().includes(query),
-        );
+    // Search is now server-side (see loadCards), so `cards` already holds exactly
+    // the rows to show.
+    const visibleCards = cards;
 
     // Load the selected card's stored photo (auth-guarded blob → object URL).
     // Blank it first so the previous card's photo never lingers while loading.

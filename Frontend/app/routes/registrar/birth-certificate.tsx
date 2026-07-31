@@ -208,29 +208,46 @@ export default function BirthCertificatePage() {
     setPhotoPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
   }
 
-  // GET /birth-certificates (paginated). Client-side search covers the loaded page.
-  async function loadRecords(): Promise<BirthRecord[]> {
-    const res = await api.get<Paginated<ApiBirthCertificate>>('/birth-certificates', { per_page: 100 });
+  // GET /birth-certificates (paginated). With a search term we first resolve
+  // matching citizens server-side (via /citizens/search, which covers the WHOLE
+  // registry — not just the loaded page), then fetch their certificates by
+  // citizen_id. Empty term = newest-first list.
+  async function loadRecords(term = ''): Promise<BirthRecord[]> {
+    const t = term.trim();
+    let res: Paginated<ApiBirthCertificate>;
+    if (t === '') {
+      res = await api.get<Paginated<ApiBirthCertificate>>('/birth-certificates', { per_page: 100 });
+    } else {
+      const citizens = await api.get<{ data: { id: number }[] }>('/citizens/search', { q: t, limit: 25 });
+      const ids = citizens.data.map((c) => c.id);
+      if (ids.length === 0) { setRecords([]); return []; }
+      res = await api.get<Paginated<ApiBirthCertificate>>('/birth-certificates', {
+        'filter[citizen_id]': ids.join(','),
+        per_page: 100,
+      });
+    }
     const mapped = res.data.map(toBirthRecord);
     setRecords(mapped);
     return mapped;
   }
 
+  // Debounced server-side search. Runs on mount (term '') for the initial list
+  // and again whenever the search box changes.
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const timer = setTimeout(async () => {
       setLoading(true);
       setError(null);
       try {
-        await loadRecords();
+        await loadRecords(searchTerm);
       } catch (err) {
         if (!cancelled) setError(err instanceof ApiError ? err.message : 'Failed to load birth certificates.');
       } finally {
         if (!cancelled) setLoading(false);
       }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [searchTerm]);
 
   // Registrar identity from the logged-in session (client-only; set post-mount).
   useEffect(() => {
@@ -241,11 +258,9 @@ export default function BirthCertificatePage() {
     }
   }, []);
 
-  const filteredRecords = records.filter((r) =>
-    r.englishName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.khmerName.includes(searchTerm) ||
-    r.nid.includes(searchTerm)
-  );
+  // Search is now server-side (see loadRecords), so `records` already holds
+  // exactly the rows to show.
+  const filteredRecords = records;
 
   const selectedRecord = records.find((r) => r.id === selectedId) ?? null;
 
